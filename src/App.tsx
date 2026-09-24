@@ -70,10 +70,11 @@ export default function App({clerk=false}:{clerk?:boolean}){
   },[word]);
 
   useEffect(()=>{
-    if(!target)return;
-    const key=keyboardRef.current?.querySelector<HTMLElement>('[data-key="'+target+'"]')??null;
-    if(stuck)animateKeyGuide(key);
-  },[stuck,target]);
+    const currentTarget=nextKey(word,index);
+    if(!currentTarget||!stuck)return;
+    const key=keyboardRef.current?.querySelector<HTMLElement>('[data-key="'+currentTarget+'"]')??null;
+    animateKeyGuide(key);
+  },[stuck,word,index]);
 
   useEffect(()=>{
     localStorage.setItem("typing-pro-keyboard-style",keyboardStyle);
@@ -143,8 +144,9 @@ export default function App({clerk=false}:{clerk?:boolean}){
           setIndex(0);
           wordStarted.current=performance.now();
         };
-        if(wordRef.current){
-          import("animejs").then(({animate})=>animate(wordRef.current,{
+        const currentWord=wordRef.current;
+        if(currentWord){
+          import("animejs").then(({animate})=>animate(currentWord,{
             opacity:[1,0],
             y:[0,-8],
             duration:130,
