@@ -23,6 +23,7 @@ export interface DeviceRuntimeProfile{
 
 const LOCAL_MODEL_BUDGET_MB=512;
 const HIGH_MEMORY_LOCAL_MIN_GB=16;
+const LOCAL_INFERENCE_ENABLED=false;
 
 function getDeviceClass():DeviceClass{
   const ua=navigator.userAgent||"";
@@ -77,6 +78,7 @@ export async function probeDeviceRuntime():Promise<DeviceRuntimeProfile>{
   const hasHeapHeadroom=heapHeadroom===null||heapHeadroom>=LOCAL_MODEL_BUDGET_MB*2;
   const accelerated=(webnn||gpu.available);
   const localModelAllowed=(
+    LOCAL_INFERENCE_ENABLED&&
     accelerated&&
     hasEnoughRam&&
     hasHeapHeadroom&&
