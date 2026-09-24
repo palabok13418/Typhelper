@@ -45,6 +45,12 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const hadError=useRef(false);
   const refineAt=useRef(0);
   const refining=useRef(false);
+  const wordState=useRef(word);
+  const indexState=useRef(index);
+  const quizState=useRef(quiz);
+  const accountState=useRef(account);
+  const helpState=useRef(help);
+  const settingsState=useRef(settings);
   const wordRef=useRef<HTMLDivElement>(null);
   const sessionRef=useRef<HTMLDivElement>(null);
   const definitionRef=useRef<HTMLDivElement>(null);
@@ -55,6 +61,13 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const workspaceRef=useRef<HTMLElement>(null);
 
   useEffect(()=>{skills.current=p.skillMap},[p.skillMap]);
+
+  useEffect(()=>{wordState.current=word},[word]);
+  useEffect(()=>{indexState.current=index},[index]);
+  useEffect(()=>{quizState.current=quiz},[quiz]);
+  useEffect(()=>{accountState.current=account},[account]);
+  useEffect(()=>{helpState.current=help},[help]);
+  useEffect(()=>{settingsState.current=settings},[settings]);
 
   useEffect(()=>{
     if(!settings||runtimeProfile)return;
@@ -133,7 +146,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
 
   useEffect(()=>{
     requestAnimationFrame(()=>animateSession(sessionRef.current));
-  },[word,index]);
+  },[word]);
 
   useEffect(()=>{
     const currentTarget=nextKey(word,index);
@@ -168,27 +181,36 @@ export default function App({clerk=false}:{clerk?:boolean}){
 
   useEffect(()=>{
     const onKey=(event:KeyboardEvent)=>{
-      if(quiz||account||help||settings)return;
+      if(quizState.current||accountState.current||helpState.current||settingsState.current)return;
       if(event.metaKey||event.ctrlKey||event.altKey)return;
+
+      const currentWord=wordState.current;
+      const currentIndex=indexState.current;
+
       if(event.key==="Backspace"){
         event.preventDefault();
-        setIndex(value=>Math.max(0,value-1));
+        const nextIndex=Math.max(0,currentIndex-1);
+        indexState.current=nextIndex;
+        setIndex(nextIndex);
         setWrong(false);
         setStuck(false);
         lastActivity.current=Date.now();
         return;
       }
+
       if(event.key.length!==1&&event.key!==" ")return;
-      const expected=word[index]??"";
+
+      const expected=currentWord[currentIndex]??"";
       const actual=event.key;
-      setPhysicalKeyboard(observeKeyboardKey(actual));
       const normalizedExpected=normalizeKey(expected);
       const normalizedActual=normalizeKey(actual);
       const now=performance.now();
       const latency=now-lastKey.current;
       lastKey.current=now;
       lastActivity.current=Date.now();
+
       learner.current?.record({kind:"key",expected,actual,latency});
+
       if(normalizedActual!==normalizedExpected){
         hadError.current=true;
         setWrong(true);
@@ -196,17 +218,23 @@ export default function App({clerk=false}:{clerk?:boolean}){
         animateKeyGuide(targetEl);
         return;
       }
+
       event.preventDefault();
       setWrong(false);
       setStuck(false);
+
       const keyEl=keyboardRef.current?.querySelector<HTMLElement>('[data-key="'+normalizedExpected+'"]')??null;
       animateKeyPress(keyEl);
-      if(index===word.length-1){
-        learner.current?.record({kind:"word",word,correct:!hadError.current,duration:now-wordStarted.current});
+
+      if(currentIndex===currentWord.length-1){
+        learner.current?.record({kind:"word",word:currentWord,correct:!hadError.current,duration:now-wordStarted.current});
         setP(current=>({...current,totalPracticeWords:current.totalPracticeWords+1}));
         hadError.current=false;
-        const next=wordQueue.current.shift()??{word:randomWord(skills.current,word),definition:null,isNew:false};
+
+        const next=wordQueue.current.shift()??{word:randomWord(skills.current,currentWord),definition:null,isNew:false};
         const advance=()=>{
+          wordState.current=next.word;
+          indexState.current=0;
           setWord(next.word);
           setWordIsNew(next.isNew);
           setDefinition(next.isNew ? (next.definition ?? "Meaning unavailable") : null);
@@ -216,13 +244,15 @@ export default function App({clerk=false}:{clerk?:boolean}){
         };
         animateWordExit(wordRef.current,advance);
       }else{
-        setIndex(value=>value+1);
+        const nextIndex=currentIndex+1;
+        indexState.current=nextIndex;
+        setIndex(nextIndex);
       }
     };
+
     window.addEventListener("keydown",onKey);
     return()=>window.removeEventListener("keydown",onKey);
-  },[word,index,quiz,account,help,settings]);
-
+  },[]);
   useEffect(()=>{
     if(p.totalPracticeWords===0||p.totalPracticeWords%20!==0)return;
     if(Date.now()-refineAt.current<120000||refining.current)return;
