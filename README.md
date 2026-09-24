@@ -53,3 +53,12 @@ python scripts/train_score_head.py dataset.jsonl
 ## Deployment
 
 The project is designed for Vercel as a Vite/React static site. Camera access requires a secure context such as HTTPS.
+
+
+## Vercel deployment
+
+The `unblockedgames` Vercel team is the intended deployment target. This repo includes a manual GitHub deployment workflow that uses `VERCEL_TOKEN` and the `unblockedgames` scope. You can also import the repository directly into that team with Vercel's Git import flow:
+
+https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fpalabok13418%2FTyping-Pro&teamSlug=unblockedgames&project-name=typing-pro
+
+Clerk still needs `VITE_CLERK_PUBLISHABLE_KEY` configured in the Vercel project environment for sign-up/sign-in to be active.
