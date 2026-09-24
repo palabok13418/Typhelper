@@ -1,5 +1,6 @@
 const RANDOM_WORD_API="https://random-word-api.herokuapp.com/word?number=10";
 const DEFINITION_CACHE="typing-pro-definition-cache";
+const SIMPLE_DEFINITION_CACHE="typing-pro-simple-definition-cache";
 
 interface DictionaryEntry{
   meanings?:Array<{definitions?:Array<{definition?:string}>}>;
@@ -9,6 +10,15 @@ export interface PracticeWord{
   word:string;
   definition:string|null;
   isNew:boolean;
+}
+
+export interface WordDetails{
+  word:string;
+  fullDefinition:string;
+  simpleDefinition:string;
+  synonyms:string[];
+  antonyms:string[];
+  examples:string[];
 }
 
 function cleanWord(value:string){
@@ -36,6 +46,24 @@ function readDefinitionCache(){
   }catch{
     return {};
   }
+}
+
+function readSimpleDefinitionCache(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(SIMPLE_DEFINITION_CACHE)||"{}") as Record<string,string>;
+    return parsed&&typeof parsed==="object"?parsed:{};
+  }catch{
+    return{};
+  }
+}
+
+function writeSimpleDefinitionCache(word:string,definition:string){
+  try{
+    const cache=readSimpleDefinitionCache();
+    cache[word]=definition;
+    const recent=Object.entries(cache).slice(-500);
+    localStorage.setItem(SIMPLE_DEFINITION_CACHE,JSON.stringify(Object.fromEntries(recent)));
+  }catch{}
 }
 
 function writeDefinitionCache(word:string,definition:string){
@@ -84,6 +112,71 @@ export async function fetchWordDefinition(word:string,signal?:AbortSignal){
   }
 
   return null;
+}
+
+export async function fetchSimpleDefinition(word:string,originalDefinition:string|null,signal?:AbortSignal){
+  const clean=cleanWord(word);
+  if(!clean)return originalDefinition;
+
+  const cached=readSimpleDefinitionCache()[clean];
+  if(cached)return cached;
+
+  try{
+    const controller=new AbortController();
+    const abortFromParent=()=>controller.abort();
+    if(signal){
+      if(signal.aborted)return originalDefinition;
+      signal.addEventListener("abort",abortFromParent,{once:true});
+    }
+    const timer=window.setTimeout(()=>controller.abort(),5000);
+    try{
+      const response=await fetch("/api/word-details?word="+encodeURIComponent(clean)+"&mode=summary",{signal:controller.signal});
+      if(!response.ok)return originalDefinition;
+      const data=await response.json() as {simpleDefinition?:unknown};
+      const simple=typeof data.simpleDefinition==="string"?data.simpleDefinition.trim():"";
+      if(simple){
+        writeSimpleDefinitionCache(clean,simple);
+        return simple;
+      }
+    }finally{
+      window.clearTimeout(timer);
+      signal?.removeEventListener("abort",abortFromParent);
+    }
+  }catch{}
+  return originalDefinition;
+}
+
+export async function fetchWordDetails(word:string,signal?:AbortSignal):Promise<WordDetails|null>{
+  const clean=cleanWord(word);
+  if(!clean)return null;
+  try{
+    const controller=new AbortController();
+    const abortFromParent=()=>controller.abort();
+    if(signal){
+      if(signal.aborted)return null;
+      signal.addEventListener("abort",abortFromParent,{once:true});
+    }
+    const timer=window.setTimeout(()=>controller.abort(),6000);
+    try{
+      const response=await fetch("/api/word-details?word="+encodeURIComponent(clean)+"&mode=details",{signal:controller.signal});
+      if(!response.ok)return null;
+      const data=await response.json();
+      if(typeof data?.fullDefinition!=="string")return null;
+      return{
+        word:clean,
+        fullDefinition:data.fullDefinition,
+        simpleDefinition:typeof data.simpleDefinition==="string"?data.simpleDefinition:"",
+        synonyms:Array.isArray(data.synonyms)?data.synonyms.filter((value:any):value is string=>typeof value==="string"):[],
+        antonyms:Array.isArray(data.antonyms)?data.antonyms.filter((value:any):value is string=>typeof value==="string"):[],
+        examples:Array.isArray(data.examples)?data.examples.filter((value:any):value is string=>typeof value==="string").slice(0,2):[]
+      };
+    }finally{
+      window.clearTimeout(timer);
+      signal?.removeEventListener("abort",abortFromParent);
+    }
+  }catch{
+    return null;
+  }
 }
 
 export async function fetchPracticeBatch(
