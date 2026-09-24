@@ -12,7 +12,7 @@ export interface CounterProps {
   borderRadius?: number;
   horizontalPadding?: number;
   textColor?: string;
-  fontWeight?: number | string;
+  fontWeight?: CSSProperties["fontWeight"];
   containerStyle?: CSSProperties;
   counterStyle?: CSSProperties;
   digitStyle?: CSSProperties;
