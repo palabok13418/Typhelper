@@ -1,7 +1,7 @@
-const PRIMARY_TIMEOUT_MS=3000;
-const SECONDARY_TIMEOUT_MS=2500;
-const GROQ_TIMEOUT_MS=4500;
-const BHT_TIMEOUT_MS=2500;
+const PRIMARY_TIMEOUT_MS=2500;
+const SECONDARY_TIMEOUT_MS=1800;
+const GROQ_TIMEOUT_MS=3000;
+const BHT_TIMEOUT_MS=1800;
 
 async function fetchWithTimeout(url,options={},timeoutMs=3000){
   const controller=new AbortController();
@@ -256,10 +256,14 @@ export default async function handler(request,response){
   const word=(url.searchParams.get("word")||"").trim().toLowerCase();
   const mode=url.searchParams.get("mode")==="summary"?"summary":"details";
   if(!/^[a-z]+$/.test(word))return response.status(400).json({error:"A single English word is required."});
-  const [definitions,alternateOf]=await Promise.all([
+  let [definitions,alternateOf]=await Promise.all([
     findDefinitions(word),
-    findAlternateOf(word)
+    mode==="details"?findAlternateOf(word):Promise.resolve(null)
   ]);
+
+  if(mode==="summary"&&!definitions.length){
+    alternateOf=await findAlternateOf(word);
+  }
 
   let resolvedDefinitions=definitions;
   let alternateDefinition=null;
