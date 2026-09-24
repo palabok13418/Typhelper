@@ -14,6 +14,7 @@ export interface PracticeWord{
 
 export interface WordDetails{
   word:string;
+  originalDefinition:string;
   fullDefinition:string;
   simpleDefinition:string;
   synonyms:string[];
@@ -168,6 +169,7 @@ export async function fetchWordDetails(word:string,signal?:AbortSignal):Promise<
       if(typeof data?.fullDefinition!=="string")return null;
       return{
         word:clean,
+        originalDefinition:typeof data.originalDefinition==="string"?data.originalDefinition:data.fullDefinition,
         fullDefinition:data.fullDefinition,
         simpleDefinition:typeof data.simpleDefinition==="string"?data.simpleDefinition:"",
         synonyms:Array.isArray(data.synonyms)?data.synonyms.filter((value:any):value is string=>typeof value==="string"):[],
