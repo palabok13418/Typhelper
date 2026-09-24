@@ -1,5 +1,5 @@
 import{SignInButton,SignUpButton,UserButton,useUser}from"@clerk/react";
-import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Lightbulb,LockKeyhole,Settings2,UserPlus,X}from"lucide-react";
+import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Laptop,Lightbulb,LockKeyhole,Settings2,UserPlus,X}from"lucide-react";
 import{useEffect,useRef,useState,type ReactNode}from"react";
 import{load,save}from"./lib/storage";
 import{adaptive,learn,randomWord}from"./lib/typing";
@@ -342,26 +342,117 @@ export default function App({clerk=false}:{clerk?:boolean}){
 
     {account&&<AccountWarning clerk={clerk} close={()=>setAccount(false)}/>}
     {help&&<SimpleModal title="How it works" icon={<CircleHelp size={20}/>} close={()=>setHelp(false)}><p>Type the highlighted letters without looking down. When you pause for a moment, the trainer shows the exact key to press next.</p><p>Each completed word is replaced with another randomized word so practice keeps moving.</p></SimpleModal>}
-    {settings&&<SimpleModal title="Settings" icon={<Settings2 size={20}/>} close={()=>setSettings(false)}>
-      <div className="setting-section"><div><strong>Keyboard style</strong><small>Windows is the default. Switch to Mac styling whenever you prefer.</small></div><div className="choice-row" role="group" aria-label="Keyboard style"><button className={keyboardStyle==="windows"?"choice active":"choice"} onClick={()=>setKeyboardStyle("windows")}>Windows</button><button className={keyboardStyle==="mac"?"choice active":"choice"} onClick={()=>setKeyboardStyle("mac")}>Mac</button></div></div>
-      <div className="setting-section"><div><strong>Physical keyboard</strong><small>{physicalKeyboard?.exactDevice?<>Detected <strong>{physicalKeyboard.name}</strong>. Typing-Pro will use its detected layout when it can.</>:physicalKeyboard?<>Observed your key layout locally. Connect the keyboard for a hardware identity when supported.</>:<>Typing-Pro can learn your key layout from normal typing without camera access.</>}</small></div><button className="choice active" onClick={async()=>{setKeyboardError(null);try{const profile=await connectPhysicalKeyboard();setPhysicalKeyboard(profile);setKeyboardStyle(profile.layout==="mac"?"mac":"windows")}catch(error){setKeyboardError(error instanceof Error?error.message:"Keyboard connection was cancelled.")}}}>{hasWebHID()?"Connect keyboard":"Detect from typing"}</button></div>
-      {keyboardError&&<div className="permission-error">{keyboardError}</div>}
-      <div className="setting-section performance-setting">
-        <div><strong>Performance</strong><small>Choose how the background training model splits processing between your device and the cloud.</small></div>
-        <div className="choice-row performance-choice-row" role="group" aria-label="Performance mode">
-          <button className={performanceMode==="low"?"choice active":"choice"} onClick={()=>setPerformanceMode("low")}><span>Low</span><small>{performanceModeLabel("low")}</small></button>
-          <button className={performanceMode==="balanced"?"choice active":"choice"} onClick={()=>setPerformanceMode("balanced")}><span>Balanced</span><small>{performanceModeLabel("balanced")}</small></button>
-          <button className={performanceMode==="max"?"choice active":"choice"} onClick={()=>setPerformanceMode("max")}><span>Max</span><small>{performanceModeLabel("max")}</small></button>
-        </div>
-      </div>
-      <div className="performance-caption"><Gauge size={14}/><span>It does use the cloud because your device may not handle the on device model that this site has to load.</span></div>
-      <div className="performance-caption performance-ratio"><span>Low: 100% cloud · Balanced: 70% cloud / 30% device · Max: 100% device when the device passes its safety check.</span></div>
-      <div className="setting-section"><div><strong>AI runtime</strong><small>{runtimeProfile?runtimeSummary(runtimeProfile):"Checking this device before loading the local model…"}</small></div><div className="runtime-badge">{runtimeProfile?.preferredBackend??"checking"}</div></div>
-      <label className="toggle-row"><span><strong>Use paired vision signals</strong><small>Accept aggregate gaze or hand-pose signals from the Keyboard Vision extension you paired yourself.</small></span><input type="checkbox" checked={visionEnabled} onChange={event=>setVisionEnabled(event.target.checked)}/></label>
-      <div className="setting-note"><LockKeyhole size={14}/><span>Camera access for Typing-Pro itself is limited to check-ins.</span></div>
-    </SimpleModal>}
+    {settings&&<SettingsModal
+      close={()=>setSettings(false)}
+      keyboardStyle={keyboardStyle}
+      setKeyboardStyle={setKeyboardStyle}
+      physicalKeyboard={physicalKeyboard}
+      setPhysicalKeyboard={setPhysicalKeyboard}
+      hasWebHID={hasWebHID()}
+      connectPhysicalKeyboard={connectPhysicalKeyboard}
+      keyboardError={keyboardError}
+      setKeyboardError={setKeyboardError}
+      performanceMode={performanceMode}
+      setPerformanceMode={setPerformanceMode}
+      runtimeProfile={runtimeProfile}
+      visionEnabled={visionEnabled}
+      setVisionEnabled={setVisionEnabled}
+    />}
     {detailsOpen&&<WordDetailsModal word={word} details={wordDetails} loading={detailsLoading} error={detailsError} close={closeWordDetails}/>}
     {quiz&&<QuizModal skillMap={p.skillMap} onClose={()=>setQuiz(false)} onRecord={event=>learner.current?.record(event)} onFinish={(result,targetText,answer)=>finishQuiz(result,targetText,answer)}/>}
+  </div>
+}
+
+export function ComputerRequiredScreen(){
+  return <main className="computer-only-screen">
+    <div className="computer-only-card">
+      <div className="computer-only-icon"><Laptop size={28}/></div>
+      <div className="modal-step">Computer required</div>
+      <h1>Open Typing-Pro on a computer</h1>
+      <p>Typing-Pro is built for a physical computer keyboard and currently supports desktop and laptop computers only.</p>
+      <div className="computer-only-note"><Keyboard size={16}/><span>Come back from a Windows, Mac, Linux, or Chromebook computer to start practicing.</span></div>
+    </div>
+  </main>
+}
+
+function SettingsModal({close,keyboardStyle,setKeyboardStyle,physicalKeyboard,setPhysicalKeyboard,hasWebHID,connectPhysicalKeyboard,keyboardError,setKeyboardError,performanceMode,setPerformanceMode,runtimeProfile,visionEnabled,setVisionEnabled}:{
+  close:()=>void;
+  keyboardStyle:KeyboardStyle;
+  setKeyboardStyle:(value:KeyboardStyle)=>void;
+  physicalKeyboard:KeyboardProfile|null;
+  setPhysicalKeyboard:(value:KeyboardProfile)=>void;
+  hasWebHID:boolean;
+  connectPhysicalKeyboard:()=>Promise<KeyboardProfile>;
+  keyboardError:string|null;
+  setKeyboardError:(value:string|null)=>void;
+  performanceMode:PerformanceMode;
+  setPerformanceMode:(value:PerformanceMode)=>void;
+  runtimeProfile:DeviceRuntimeProfile|null;
+  visionEnabled:boolean;
+  setVisionEnabled:(value:boolean)=>void;
+}){
+  const modal=useRef<HTMLDivElement>(null);
+  useEffect(()=>animateModal(modal.current),[]);
+  return <div className="overlay">
+    <div className="settings-modal" ref={modal} role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <header className="settings-header">
+        <div className="settings-header-main">
+          <div className="modal-icon"><Settings2 size={20}/></div>
+          <div><div className="modal-step">Preferences</div><h2 id="settings-title">Settings</h2></div>
+        </div>
+        <button className="icon-action" onClick={close} aria-label="Close settings"><X size={17}/></button>
+      </header>
+      <div className="settings-scroll">
+        <section className="settings-card settings-performance">
+          <div className="settings-card-head"><div className="settings-card-icon"><Gauge size={17}/></div><div><strong>Performance</strong><p>Control how the background training model uses your device and the cloud.</p></div></div>
+          <div className="performance-options" role="group" aria-label="Performance mode">
+            <button className={performanceMode==="low"?"performance-option active":"performance-option"} onClick={()=>setPerformanceMode("low")}><strong>Low</strong><span>100% cloud</span></button>
+            <button className={performanceMode==="balanced"?"performance-option active":"performance-option"} onClick={()=>setPerformanceMode("balanced")}><strong>Balanced</strong><span>70% cloud · 30% device</span></button>
+            <button className={performanceMode==="max"?"performance-option active":"performance-option"} onClick={()=>setPerformanceMode("max")}><strong>Max</strong><span>100% device</span></button>
+          </div>
+          <div className="settings-caption"><Gauge size={14}/><span>It does use the cloud because your device may not handle the on device model that this site has to load.</span></div>
+          <div className="settings-caption secondary"><span>Max automatically falls back to cloud when the device fails the safety check.</span></div>
+        </section>
+
+        <div className="settings-grid">
+          <section className="settings-card">
+            <div className="settings-card-head"><div className="settings-card-icon"><Keyboard size={17}/></div><div><strong>Keyboard style</strong><p>Choose the keyboard visualization shown during practice.</p></div></div>
+            <div className="choice-row settings-choice-row" role="group" aria-label="Keyboard style">
+              <button className={keyboardStyle==="windows"?"choice active":"choice"} onClick={()=>setKeyboardStyle("windows")}>Windows</button>
+              <button className={keyboardStyle==="mac"?"choice active":"choice"} onClick={()=>setKeyboardStyle("mac")}>Mac</button>
+            </div>
+          </section>
+
+          <section className="settings-card">
+            <div className="settings-card-head"><div className="settings-card-icon"><Activity size={17}/></div><div><strong>Physical keyboard</strong><p>{physicalKeyboard?.exactDevice?<>Detected <strong>{physicalKeyboard.name}</strong>.</>:physicalKeyboard?"Your key layout is being learned locally.":"Learn your layout from typing or connect the keyboard when supported."}</p></div></div>
+            <button className="settings-button" onClick={async()=>{
+              setKeyboardError(null);
+              try{
+                const profile=await connectPhysicalKeyboard();
+                setPhysicalKeyboard(profile);
+                setKeyboardStyle(profile.layout==="mac"?"mac":"windows");
+              }catch(error){
+                setKeyboardError(error instanceof Error?error.message:"Keyboard connection was cancelled.");
+              }
+            }}>{hasWebHID?"Connect keyboard":"Detect from typing"}</button>
+            {keyboardError&&<div className="permission-error">{keyboardError}</div>}
+          </section>
+
+          <section className="settings-card">
+            <div className="settings-card-head"><div className="settings-card-icon"><Gauge size={17}/></div><div><strong>AI runtime</strong><p>{runtimeProfile?runtimeSummary(runtimeProfile):"Checking this device before loading the local model…"}</p></div></div>
+            <div className="settings-status"><span>Selected backend</span><strong>{runtimeProfile?.preferredBackend??"checking"}</strong></div>
+          </section>
+
+          <section className="settings-card">
+            <div className="settings-card-head"><div className="settings-card-icon"><Activity size={17}/></div><div><strong>Vision signals</strong><p>Use aggregate gaze or hand-pose signals from the Keyboard Vision extension you paired yourself.</p></div></div>
+            <label className="settings-toggle"><span>Use paired vision signals</span><input type="checkbox" checked={visionEnabled} onChange={event=>setVisionEnabled(event.target.checked)}/></label>
+          </section>
+        </div>
+
+        <div className="settings-privacy"><LockKeyhole size={15}/><div><strong>Privacy</strong><span>Camera access for Typing-Pro itself is limited to check-ins. Paired vision signals are optional.</span></div></div>
+      </div>
+      <footer className="settings-footer"><span>Changes save automatically.</span><button className="solid-action" onClick={close}>Done</button></footer>
+    </div>
   </div>
 }
 
