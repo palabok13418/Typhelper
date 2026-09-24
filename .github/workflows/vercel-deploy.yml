@@ -1,0 +1,20 @@
+name: Deploy to Vercel
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install
+      - run: npm run build
+      - run: npx vercel@latest --prod --yes --scope unblockedgames --name typing-pro
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
