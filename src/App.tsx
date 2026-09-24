@@ -484,6 +484,11 @@ function SimpleModal({title,icon,close,children}:{title:string;icon:ReactNode;cl
   return <div className="overlay"><div className="account-modal" ref={modal}><div className="modal-top"><div><div className="modal-icon">{icon}</div><h2>{title}</h2></div><button className="icon-action" onClick={close} aria-label="Close"><X size={17}/></button></div>{children}<div className="modal-actions"><button className="solid-action" onClick={close}>Done</button></div></div></div>
 }
 
+function formOfPhrase(type:string){
+  const article=/^[aeiou]/i.test(type)?"an":"a";
+  return article+" "+type+" of";
+}
+
 function WordDetailsModal({word,details,loading,error,close}:{word:string;details:WordDetails|null;loading:boolean;error:boolean;close:()=>void}){
   const modal=useRef<HTMLDivElement>(null);
   useEffect(()=>animateModal(modal.current),[]);
@@ -503,7 +508,7 @@ function WordDetailsModal({word,details,loading,error,close}:{word:string;detail
         {details.alternateOf&&<div className="word-form-notice">
           <div className="word-form-notice-icon"><BookOpenText size={15}/></div>
           <div>
-            <strong>This word is {details.alternateOfType?.startsWith("alternative")||details.alternateOfType?.startsWith("archaic")||details.alternateOfType?.startsWith("obsolete")||details.alternateOfType?.startsWith("informal")||details.alternateOfType?.startsWith("inflected")||details.alternateOfType?.startsWith("adjective")?"an":"a"} {details.alternateOfType||"an alternative form"} of <b>{details.alternateOf}</b>.</strong>
+            <strong>This word is {formOfPhrase(details.alternateOfType||"alternative form")} <b>{details.alternateOf}</b>.</strong>
             {details.alternateOfSimpleDefinition&&<span>The original word means: <b>{details.alternateOfSimpleDefinition}</b></span>}
           </div>
         </div>}
