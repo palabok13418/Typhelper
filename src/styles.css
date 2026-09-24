@@ -75,7 +75,21 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 }
 .function-key{height:30px;min-height:30px;font-size:9px;border-radius:7px;background:#f7f7f5}
 .key.modifier-key{color:#676a70;background:#eceeea}
-.key.target{background:#202124;border-color:#202124;color:#fff}
+.key.modifier-key.finger-thumb{background:#e7e4dc}
+.key.target{border-color:#202124;color:#fff;box-shadow:inset 0 0 0 2px rgba(32,33,36,.24)}
+.key.target.finger-left-pinky{background:#f9d8d8}
+.key.target.finger-left-ring{background:#f6e2cf}
+.key.target.finger-left-middle{background:#f2efc5}
+.key.target.finger-left-index{background:#dceccf}
+.key.target.finger-right-index{background:#d4ebdf}
+.key.target.finger-right-middle{background:#d8e7f7}
+.key.target.finger-right-ring{background:#e1dcef}
+.key.target.finger-right-pinky{background:#f0dce9}
+.key.target.finger-thumb{background:#e7e4dc}
+.key.target.finger-left-pinky,.key.target.finger-left-ring,.key.target.finger-left-middle,.key.target.finger-left-index,
+.key.target.finger-right-index,.key.target.finger-right-middle,.key.target.finger-right-ring,.key.target.finger-right-pinky,.key.target.finger-thumb{
+  color:#202124;border-color:rgba(32,33,36,.35);box-shadow:inset 0 0 0 2px rgba(32,33,36,.28)
+}
 .keyboard-note{display:flex;align-items:center;gap:6px;margin-top:11px;color:#8c8f95;font-size:11px}
 .practice-side{display:grid;gap:12px}
 .mini-card{border:1px solid var(--line);border-radius:16px;background:#fff;padding:18px}
