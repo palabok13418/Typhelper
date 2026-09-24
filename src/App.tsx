@@ -1,5 +1,5 @@
 import{SignInButton,SignUpButton,UserButton,useUser}from"@clerk/react";
-import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Laptop,Lightbulb,LockKeyhole,Palette,Settings2,UserPlus,X}from"lucide-react";
+import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Laptop,Lightbulb,LockKeyhole,Settings2,UserPlus,X}from"lucide-react";
 import{useCallback,useEffect,useRef,useState,type ReactNode}from"react";
 import{load,save}from"./lib/storage";
 import{adaptive,learn,randomWord}from"./lib/typing";
@@ -8,10 +8,11 @@ import{scoreWebNN}from"./lib/webnn";
 import{createQuiz,scoreQuiz,type QuizScore}from"./lib/quiz";
 import{PersonalModel}from"./lib/personal-model";
 import{VisionBridge}from"./lib/vision-bridge";
-import{FUNCTION_ROW,MAC_BOTTOM_ROW,MAC_ROWS,WINDOWS_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
+import{FUNCTION_ROW,MAC_BOTTOM_ROW,MAC_ROWS,WINDOWS_BOTTOM_ROW,WINDOWS_COPILOT_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
 import{fingerClass}from"./lib/finger-map";
 import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateSession,animateWord,animateWordExit}from"./lib/animations";
 import{quietlyRefineProfile}from"./lib/local-model";
+import{analyzePractice}from"./lib/ai-coach";
 import{probeDeviceRuntime,runtimeSummary,type DeviceRuntimeProfile}from"./lib/device-runtime";
 import{connectPhysicalKeyboard,hasWebHID,observeKeyboardKey,readKeyboardProfile,type KeyboardProfile}from"./lib/keyboard-profile";
 import{readPerformanceMode,savePerformanceMode,performanceModeLabel,type PerformanceMode}from"./lib/performance";
@@ -21,6 +22,7 @@ import CountUp from "./components/CountUp";
 import type{GazeState,Progress,QuizResult}from"./types";
 
 type KeyboardStyle="windows"|"mac";
+type WindowsLayout="legacy"|"copilot";
 
 export default function App({clerk=false}:{clerk?:boolean}){
   const[p,setP]=useState<Progress>(()=>load());
@@ -41,6 +43,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const[help,setHelp]=useState(false);
   const[settings,setSettings]=useState(false);
   const[keyboardStyle,setKeyboardStyle]=useState<KeyboardStyle>(()=>localStorage.getItem("typing-pro-keyboard-style")==="mac"?"mac":"windows");
+  const[windowsLayout,setWindowsLayout]=useState<WindowsLayout>(()=>localStorage.getItem("typhelper-windows-layout")==="copilot"?"copilot":"legacy");
   const[fingerColors,setFingerColors]=useState(()=>localStorage.getItem("typing-pro-finger-colors")!=="false");
   const[visionEnabled,setVisionEnabled]=useState(()=>localStorage.getItem("typing-pro-vision-enabled")==="true");
   const[performanceMode,setPerformanceMode]=useState<PerformanceMode>(()=>readPerformanceMode());
@@ -69,6 +72,8 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const wordQueue=useRef<PracticeWord[]>([]);
   const queueRequest=useRef<AbortController|null>(null);
   const detailsRequest=useRef<AbortController|null>(null);
+  const recentPractice=useRef<Array<{word:string;correct:boolean;duration:number}>>([]);
+  const practiceAiBusy=useRef(false);
   const workspaceRef=useRef<HTMLElement>(null);
 
   useEffect(()=>{skills.current=p.skillMap},[p.skillMap]);
@@ -188,9 +193,8 @@ export default function App({clerk=false}:{clerk?:boolean}){
     animateKeyGuide(key);
   },[stuck,word,index]);
 
-  useEffect(()=>{
-    localStorage.setItem("typing-pro-keyboard-style",keyboardStyle);
-  },[keyboardStyle]);
+  useEffect(()=>{localStorage.setItem("typing-pro-keyboard-style",keyboardStyle)},[keyboardStyle]);
+  useEffect(()=>{localStorage.setItem("typhelper-windows-layout",windowsLayout)},[windowsLayout]);
   useEffect(()=>{
     localStorage.setItem("typing-pro-finger-colors",String(fingerColors));
   },[fingerColors]);
@@ -208,13 +212,24 @@ export default function App({clerk=false}:{clerk?:boolean}){
         active.current=Math.min(1800,active.current+1);
         setP(current=>({...current,activeSeconds:Math.min(1800,current.activeSeconds+1)}));
       }
-      if(active.current>=1800)setQuiz(true);
     },1000);
     window.addEventListener("keydown",activity);
     window.addEventListener("pointerdown",activity);
     return()=>{window.clearInterval(timer);window.removeEventListener("keydown",activity);window.removeEventListener("pointerdown",activity);bridge.stop()};
   },[quiz,visionEnabled]);
 
+  async function runPracticeCoach(){
+    if(practiceAiBusy.current||recentPractice.current.length<10)return;
+    practiceAiBusy.current=true;
+    try{
+      const result=await analyzePractice(skills.current,recentPractice.current,performanceMode);
+      if(result?.recommendedWords.length){
+        const existing=new Set(wordQueue.current.map(item=>item.word));
+        const additions=result.recommendedWords.filter(item=>item!==word&&!existing.has(item)&&!shownWords.current.has(item));
+        if(additions.length)wordQueue.current.unshift(...additions.map(item=>({word:item,definition:null,isNew:true})));
+      }
+    }finally{practiceAiBusy.current=false}
+  }
   useEffect(()=>{
     const onKey=(event:KeyboardEvent)=>{
       if(quiz||account||help||settings||detailsOpen)return;
@@ -255,8 +270,13 @@ export default function App({clerk=false}:{clerk?:boolean}){
       const keyEl=keyboardRef.current?.querySelector<HTMLElement>('[data-key="'+normalizedExpected+'"]')??null;
       animateKeyPress(keyEl);
       if(index===word.length-1){
-        learner.current?.record({kind:"word",word,correct:!hadError.current,duration:now-wordStarted.current});
+        const correct=!hadError.current;
+        const duration=now-wordStarted.current;
+        learner.current?.record({kind:"word",word,correct,duration});
+        recentPractice.current=[...recentPractice.current,{word,correct,duration}].slice(-30);
+        const nextTotal=p.totalPracticeWords+1;
         setP(current=>({...current,totalPracticeWords:current.totalPracticeWords+1}));
+        if(nextTotal%10===0)void runPracticeCoach();
         hadError.current=false;
         const next=wordQueue.current.shift()??{word:randomWord(skills.current,word),definition:null,isNew:false};
         const advance=()=>{
@@ -288,13 +308,11 @@ export default function App({clerk=false}:{clerk?:boolean}){
     }
   },[p.totalPracticeWords,performanceMode]);
 
-  useEffect(()=>{if(p.activeSeconds>=1800)setQuiz(true)},[p.activeSeconds]);
-
   const target=nextKey(word,index);
   const remaining=Math.max(0,1800-p.activeSeconds);
   const percent=word ? Math.min(100,Math.round((index/word.length)*100)) : 0;
   const rows=keyboardStyle==="windows"?WINDOWS_ROWS:MAC_ROWS;
-  const bottom=keyboardStyle==="windows"?WINDOWS_BOTTOM_ROW:MAC_BOTTOM_ROW;
+  const bottom=keyboardStyle==="windows"?(windowsLayout==="copilot"?WINDOWS_COPILOT_BOTTOM_ROW:WINDOWS_BOTTOM_ROW):MAC_BOTTOM_ROW;
 
   function openWordDetails(){
     detailsRequest.current?.abort();
@@ -342,11 +360,11 @@ export default function App({clerk=false}:{clerk?:boolean}){
       <div className="left-controls">
         {clerk?<AccountControl open={()=>setAccount(true)}/>:<button className="outline-action" onClick={()=>setAccount(true)}><UserPlus size={16}/><span>Sign up</span></button>}
       </div>
-      <div className="wordmark"><Keyboard size={18}/><span>Typing-Pro</span></div>
+      <div className="wordmark"><Keyboard size={18}/><span>Typhelper</span></div>
       <div className="right-controls">
         <button className="icon-action" aria-label="Help" onClick={()=>setHelp(true)}><CircleHelp size={17}/></button>
         <button className="icon-action" aria-label="Settings" onClick={()=>setSettings(true)}><Settings2 size={17}/></button>
-        <div className="next-check"><Clock3 size={14}/><span>{remaining?formatTime(remaining):"check-in ready"}</span></div>
+        <div className="next-check"><Clock3 size={14}/><span>check-in anytime</span></div>
       </div>
     </header>
 
@@ -379,7 +397,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
             :<Counter value={p.totalPracticeWords} places={counterPlaces(p.totalPracticeWords)} fontSize={43} padding={0} gap={1} horizontalPadding={0} textColor="#202124" fontWeight={760} gradientHeight={0}/>}
         </div><div className="muted">completed this device</div></div>
         <div className="mini-card"><div className="mini-label">Live WPM</div><div className="big-stat stat-counter"><Counter value={liveWpm} places={counterPlaces(liveWpm)} fontSize={43} padding={0} gap={1} horizontalPadding={0} textColor="#202124" fontWeight={760} gradientHeight={0}/></div><div className="muted">current typing speed</div></div>
-        <div className="mini-card"><div className="mini-label">Check-in</div><div className="check-row"><span>{remaining?formatTime(remaining):"Ready"}</span><Clock3 size={15}/></div><button className="solid-action" onClick={()=>setQuiz(true)}><span>Take check-in</span><ChevronRight size={16}/></button></div>
+        <div className="mini-card"><div className="mini-label">Check-in</div><div className="check-row"><span>Ready</span><Clock3 size={15}/></div><button className="solid-action" onClick={()=>setQuiz(true)}><span>Take check-in</span><ChevronRight size={16}/></button></div>
         <div className="mini-card privacy-card"><LockKeyhole size={16}/><div><strong>Private by default</strong><p>Your typing stays on this device unless you choose to sync an account.</p></div></div>
       </aside>
     </main>
@@ -390,6 +408,8 @@ export default function App({clerk=false}:{clerk?:boolean}){
       close={()=>setSettings(false)}
       keyboardStyle={keyboardStyle}
       setKeyboardStyle={setKeyboardStyle}
+      windowsLayout={windowsLayout}
+      setWindowsLayout={setWindowsLayout}
       physicalKeyboard={physicalKeyboard}
       setPhysicalKeyboard={setPhysicalKeyboard}
       hasWebHID={hasWebHID()}
@@ -404,7 +424,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
       setFingerColors={setFingerColors}
     />}
     {detailsOpen&&<WordDetailsModal word={word} details={wordDetails} loading={detailsLoading} error={detailsError} close={closeWordDetails}/>}
-    {quiz&&<QuizModal skillMap={p.skillMap} onClose={()=>setQuiz(false)} onRecord={event=>learner.current?.record(event)} onFinish={(result,targetText,answer)=>finishQuiz(result,targetText,answer)}/>}
+    {quiz&&<QuizModal skillMap={p.skillMap} performanceMode={performanceMode} onClose={()=>setQuiz(false)} onRecord={event=>learner.current?.record(event)} onFinish={(result,targetText,answer)=>finishQuiz(result,targetText,answer)}/>}
   </div>
 }
 
@@ -413,8 +433,8 @@ export function ComputerRequiredScreen(){
     <div className="computer-only-card">
       <div className="computer-only-icon"><Laptop size={28}/></div>
       <div className="modal-step">Computer required</div>
-      <h1>Open Typing-Pro on a computer</h1>
-      <p>Typing-Pro is built for a physical computer keyboard and currently supports desktop and laptop computers only.</p>
+      <h1>Open Typhelper on a computer</h1>
+      <p>Typhelper is built for a physical computer keyboard and currently supports desktop and laptop computers only.</p>
       <div className="computer-only-note"><Keyboard size={16}/><span>Come back from a Windows, Mac, Linux, or Chromebook computer to start practicing.</span></div>
     </div>
   </main>
@@ -498,7 +518,7 @@ function SettingsModal({close,keyboardStyle,setKeyboardStyle,physicalKeyboard,se
             <span><strong>Use paired vision signals</strong><small>Allow your paired Keyboard Vision extension to contribute aggregate gaze or hand-pose signals.</small></span>
             <input type="checkbox" checked={visionEnabled} onChange={event=>setVisionEnabled(event.target.checked)}/>
           </label>
-          <div className="simple-settings-privacy"><LockKeyhole size={15}/><span>Camera access in Typing-Pro is limited to check-ins. Nothing here turns on the camera.</span></div>
+          <div className="simple-settings-privacy"><LockKeyhole size={15}/><span>Camera access in Typhelper is limited to check-ins. Nothing here turns on the camera.</span></div>
         </section>
       </div>
 
@@ -738,7 +758,7 @@ function QuizModal({skillMap,onClose,onFinish,onRecord}:{skillMap:Progress["skil
       <div className="checkin-intro-copy">
         <div className="checkin-icon"><Keyboard size={24}/></div>
         <h2>Type normally. Nothing to click.</h2>
-        <p>Typing-Pro will watch the keyboard you already use and measure speed, accuracy, consistency, and screen focus for 60 seconds.</p>
+        <p>Typhelper will watch the keyboard you already use and measure speed, accuracy, consistency, and screen focus for 60 seconds.</p>
         <div className="checkin-note"><Camera size={15}/><span>Camera access is only used during this check-in to detect when you look down at the keyboard.</span></div>
         {error&&<div className="permission-error">{error}</div>}
         <div className="checkin-actions"><button className="outline-action" onClick={onClose}>Not now</button><button className="solid-action" onClick={start}>Allow camera & start <ChevronRight size={16}/></button></div>
