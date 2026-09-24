@@ -6,22 +6,31 @@ export default async function handler(req,res){
 
   try{
     const body=typeof req.body==="string"?JSON.parse(req.body||"{}"):req.body||{};
-    const upstream=await fetch("https://api.groq.com/openai/v1/chat/completions",{
-      method:"POST",
-      headers:{
-        "content-type":"application/json",
-        authorization:"Bearer "+apiKey
-      },
-      body:JSON.stringify({
-        model:process.env.GROQ_MODEL||"openai/gpt-oss-20b",
-        messages:[
-          {role:"system",content:"You are Typing-Pro's cloud typing-training model. Analyze aggregate typing metrics only. Never request or infer raw keystroke streams, camera frames, or personal identifiers. Return compact JSON with focusKeys and difficulty."},
-          {role:"user",content:String(body.summary||"")}
-        ],
-        temperature:0.1,
-        max_completion_tokens:90
-      })
-    });
+    const summary=typeof body.summary==="string"?body.summary.slice(0,7000):"";
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),5000);
+    let upstream;
+    try{
+      upstream=await fetch("https://api.groq.com/openai/v1/chat/completions",{
+        method:"POST",
+        headers:{
+          "content-type":"application/json",
+          authorization:"Bearer "+apiKey
+        },
+        body:JSON.stringify({
+          model:process.env.GROQ_MODEL||"openai/gpt-oss-20b",
+          messages:[
+            {role:"system",content:"You are Typing-Pro's cloud typing-training model. Analyze aggregate typing metrics only. Never request or infer raw keystroke streams, camera frames, or personal identifiers. Return compact JSON with focusKeys and difficulty."},
+            {role:"user",content:summary}
+          ],
+          temperature:0.1,
+          max_completion_tokens:90
+        }),
+        signal:controller.signal
+      });
+    }finally{
+      clearTimeout(timer);
+    }
 
     const data=await upstream.json().catch(()=>null);
     if(!upstream.ok)return res.status(upstream.status).json({error:"groq-request-failed"});
