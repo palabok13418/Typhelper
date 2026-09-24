@@ -1,4 +1,5 @@
 const PRIMARY_TIMEOUT_MS=3500;
+const WIKTIONARY_TIMEOUT_MS=2500;
 const FALLBACK_TIMEOUT_MS=2500;
 
 async function fetchWithTimeout(url,options={},timeoutMs=3000){
@@ -17,6 +18,30 @@ function extractDictionaryDefinition(data){
     .flatMap(entry=>Array.isArray(entry?.meanings)?entry.meanings:[])
     .flatMap(meaning=>Array.isArray(meaning?.definitions)?meaning.definitions:[])
     .map(item=>typeof item?.definition==="string"?item.definition.trim():"")
+    .find(Boolean);
+  return definition||null;
+}
+
+function stripMarkup(value){
+  return value
+    .replace(/<[^>]*>/g," ")
+    .replace(/&nbsp;/gi," ")
+    .replace(/&amp;/gi,"&")
+    .replace(/&quot;/gi,'"')
+    .replace(/&#39;|&apos;/gi,"'")
+    .replace(/&lt;/gi,"<")
+    .replace(/&gt;/gi,">")
+    .replace(/\\s+/g," ")
+    .trim();
+}
+
+function extractWiktionaryDefinition(data){
+  const groups=Array.isArray(data?.en)?data.en:[];
+  const definition=groups
+    .filter(item=>item?.language==="English"||item?.language==="en"||!item?.language)
+    .flatMap(item=>Array.isArray(item?.definitions)?item.definitions:[])
+    .map(item=>typeof item?.definition==="string"?stripMarkup(item.definition):"")
+    .map(value=>value.replace(/^\s*[-–—]\s*/,"").trim())
     .find(Boolean);
   return definition||null;
 }
@@ -70,6 +95,31 @@ export default async function handler(request,response){
     }
   }catch{
     primaryStatus=502;
+  }
+
+  try{
+    const wiktionary=await fetchWithTimeout(
+      "https://en.wiktionary.org/api/rest_v1/page/definition/"+encodeURIComponent(word)+"?redirect=true",
+      {
+        headers:{
+          accept:"application/json",
+          "user-agent":"Typing-Pro/0.2 (word-definition-lookup)"
+        }
+      },
+      WIKTIONARY_TIMEOUT_MS
+    );
+
+    if(wiktionary.ok){
+      const data=await wiktionary.json().catch(()=>null);
+      const definition=extractWiktionaryDefinition(data);
+      if(definition){
+        response.status(200).json(dictionaryResponse(word,definition));
+        response.setHeader("cache-control","public, s-maxage=86400, stale-while-revalidate=604800");
+        return;
+      }
+    }
+  }catch{
+    // Continue to the Datamuse fallback.
   }
 
   try{
