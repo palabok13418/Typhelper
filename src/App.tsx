@@ -365,6 +365,8 @@ export default function App({clerk=false}:{clerk?:boolean}){
       runtimeProfile={runtimeProfile}
       visionEnabled={visionEnabled}
       setVisionEnabled={setVisionEnabled}
+      fingerColors={fingerColors}
+      setFingerColors={setFingerColors}
     />}
     {detailsOpen&&<WordDetailsModal word={word} details={wordDetails} loading={detailsLoading} error={detailsError} close={closeWordDetails}/>}
     {quiz&&<QuizModal skillMap={p.skillMap} onClose={()=>setQuiz(false)} onRecord={event=>learner.current?.record(event)} onFinish={(result,targetText,answer)=>finishQuiz(result,targetText,answer)}/>}
