@@ -440,10 +440,12 @@ export function ComputerRequiredScreen(){
   </main>
 }
 
-function SettingsModal({close,keyboardStyle,setKeyboardStyle,physicalKeyboard,setPhysicalKeyboard,hasWebHID,connectPhysicalKeyboard,keyboardError,setKeyboardError,performanceMode,setPerformanceMode,visionEnabled,setVisionEnabled,fingerColors,setFingerColors}:{
+function SettingsModal({close,keyboardStyle,setKeyboardStyle,windowsLayout,setWindowsLayout,physicalKeyboard,setPhysicalKeyboard,hasWebHID,connectPhysicalKeyboard,keyboardError,setKeyboardError,performanceMode,setPerformanceMode,visionEnabled,setVisionEnabled,fingerColors,setFingerColors}:{
   close:()=>void;
   keyboardStyle:KeyboardStyle;
   setKeyboardStyle:(value:KeyboardStyle)=>void;
+  windowsLayout:WindowsLayout;
+  setWindowsLayout:(value:WindowsLayout)=>void;
   physicalKeyboard:KeyboardProfile|null;
   setPhysicalKeyboard:(value:KeyboardProfile)=>void;
   hasWebHID:boolean;
@@ -477,6 +479,13 @@ function SettingsModal({close,keyboardStyle,setKeyboardStyle,physicalKeyboard,se
             <div className="settings-choice-pills" role="group" aria-label="Keyboard style">
               <button className={keyboardStyle==="windows"?"settings-pill active":"settings-pill"} onClick={()=>setKeyboardStyle("windows")}>Windows</button>
               <button className={keyboardStyle==="mac"?"settings-pill active":"settings-pill"} onClick={()=>setKeyboardStyle("mac")}>Mac</button>
+            </div>
+          </div>
+          {keyboardStyle==="windows"&&<div className="settings-row compact-row">
+            <div><strong>Windows keyboard layout</strong><span>Legacy uses the Menu key. New uses the Copilot key.</span></div>
+            <div className="settings-choice-pills" role="group" aria-label="Windows keyboard layout">
+              <button className={windowsLayout==="legacy"?"settings-pill active":"settings-pill"} onClick={()=>setWindowsLayout("legacy")}>Legacy</button>
+              <button className={windowsLayout==="copilot"?"settings-pill active":"settings-pill"} onClick={()=>setWindowsLayout("copilot")}>Copilot</button>
             </div>
           </div>
           <label className="simple-settings-toggle">
