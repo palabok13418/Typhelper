@@ -1,0 +1,3 @@
+export const ROWS=[[{k:"q",w:1},{k:"w",w:1},{k:"e",w:1},{k:"r",w:1},{k:"t",w:1},{k:"y",w:1},{k:"u",w:1},{k:"i",w:1},{k:"o",w:1},{k:"p",w:1}],[{k:"a",w:1.15},{k:"s",w:1},{k:"d",w:1},{k:"f",w:1},{k:"g",w:1},{k:"h",w:1},{k:"j",w:1},{k:"k",w:1},{k:"l",w:1.15}],[{k:"z",w:1.35},{k:"x",w:1},{k:"c",w:1},{k:"v",w:1},{k:"b",w:1},{k:"n",w:1},{k:"m",w:1.35}]];
+export function normalizeKey(key:string){if(key===" ")return"space";return key.length===1?key.toLowerCase():key.toLowerCase()}
+export function nextKey(word:string,index:number){return normalizeKey(word[index]??"")}
