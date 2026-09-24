@@ -9,8 +9,9 @@ import{createQuiz,scoreQuiz,type QuizScore}from"./lib/quiz";
 import{PersonalModel}from"./lib/personal-model";
 import{VisionBridge}from"./lib/vision-bridge";
 import{FUNCTION_ROW,MAC_BOTTOM_ROW,MAC_ROWS,WINDOWS_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
-import{animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateWord}from"./lib/animations";
+import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateWord}from"./lib/animations";
 import{quietlyRefineProfile}from"./lib/local-model";
+import{fetchPracticeWord,type PracticeWord}from"./lib/word-api";
 import type{GazeState,Progress,QuizResult}from"./types";
 
 type KeyboardStyle="windows"|"mac";
@@ -21,6 +22,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const[index,setIndex]=useState(0);
   const[wrong,setWrong]=useState(false);
   const[stuck,setStuck]=useState(false);
+  const[definition,setDefinition]=useState<string|null>(null);
   const[account,setAccount]=useState(false);
   const[quiz,setQuiz]=useState(false);
   const[help,setHelp]=useState(false);
@@ -37,19 +39,28 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const hadError=useRef(false);
   const refineAt=useRef(0);
   const wordRef=useRef<HTMLDivElement>(null);
+  const definitionRef=useRef<HTMLDivElement>(null);
   const keyboardRef=useRef<HTMLDivElement>(null);
+  const shownWords=useRef<Set<string>>(readShownWords());
+  const pendingWord=useRef<{previous:string;data:PracticeWord}|null>(null);
   const workspaceRef=useRef<HTMLElement>(null);
 
   useEffect(()=>{skills.current=p.skillMap},[p.skillMap]);
   useEffect(()=>save(p),[p]);
 
   useEffect(()=>{
-    const first=randomWord(p.skillMap);
-    setWord(first);
+    const controller=new AbortController();
+    const show=({word:nextWord,definition:nextDefinition,isNew}:PracticeWord)=>{
+      setWord(nextWord);
+      setDefinition(nextDefinition);
+      if(isNew)markShownWord(nextWord,shownWords.current);
+      wordStarted.current=performance.now();
+    };
+    void fetchPracticeWord("",shownWords.current,controller.signal).then(show).catch(()=>show({word:randomWord(p.skillMap),definition:null,isNew:false}));
     learner.current=new PersonalModel({skills:p.skillMap,transitions:{},fatigue:0});
     learner.current.onUpdate(snapshot=>{skills.current=snapshot.skills});
     const sync=window.setInterval(()=>setP(current=>({...current,skillMap:skills.current})),2500);
-    return()=>{window.clearInterval(sync);learner.current?.dispose()};
+    return()=>{controller.abort();window.clearInterval(sync);learner.current?.dispose()};
   },[]);
 
   useEffect(()=>{
@@ -67,7 +78,19 @@ export default function App({clerk=false}:{clerk?:boolean}){
   useEffect(()=>{
     if(!word)return;
     requestAnimationFrame(()=>animateWord(wordRef.current));
+    const controller=new AbortController();
+    const existing=pendingWord.current;
+    if(!existing||existing.previous!==word){
+      void fetchPracticeWord(word,shownWords.current,controller.signal)
+        .then(data=>{if(!controller.signal.aborted)pendingWord.current={previous:word,data}})
+        .catch(()=>{});
+    }
+    return()=>controller.abort();
   },[word]);
+
+  useEffect(()=>{
+    if(definition)requestAnimationFrame(()=>animateDefinition(definitionRef.current));
+  },[definition]);
 
   useEffect(()=>{
     const currentTarget=nextKey(word,index);
@@ -138,9 +161,13 @@ export default function App({clerk=false}:{clerk?:boolean}){
         learner.current?.record({kind:"word",word,correct:!hadError.current,duration:now-wordStarted.current});
         setP(current=>({...current,totalPracticeWords:current.totalPracticeWords+1}));
         hadError.current=false;
-        const next=randomWord(skills.current,word);
+        const prepared=pendingWord.current?.previous===word?pendingWord.current.data:null;
+        pendingWord.current=null;
+        const next=prepared??{word:randomWord(skills.current,word),definition:null,isNew:false};
         const advance=()=>{
-          setWord(next);
+          setWord(next.word);
+          setDefinition(next.definition);
+          if(next.isNew)markShownWord(next.word,shownWords.current);
           setIndex(0);
           wordStarted.current=performance.now();
         };
@@ -210,6 +237,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
       <section className="practice-area">
         <div className="session-line"><span>Practice</span><span>{percent}%</span></div>
         <div className="word-stage">
+          {definition&&<div className="word-definition" ref={definitionRef} aria-live="polite"><span>meaning</span><strong>{definition}</strong></div>}
           <div className="word" ref={wordRef} aria-live="polite">{[...word].map((char,i)=><span key={i} className={"word-char "+(i<index?"typed":i===index?(wrong?"wrong":"current"):"")}>{char}</span>)}</div>
           <div className="subtle-hint">
             {stuck?<><Lightbulb size={15}/><span>press <strong>{target==="space"?"SPACE":target.toUpperCase()}</strong> next</span></>:wrong?<><X size={14}/><span>try that key again</span></>:<span>type the highlighted key</span>}
@@ -329,3 +357,23 @@ function QuizModal({skillMap,onClose,onFinish,onRecord}:{skillMap:Progress["skil
 }
 
 function formatTime(seconds:number){const m=Math.floor(seconds/60),s=seconds%60;return m+":"+String(s).padStart(2,"0")}
+
+
+function readShownWords(){
+  try{
+    const raw=localStorage.getItem("typing-pro-shown-words");
+    const parsed=JSON.parse(raw||"[]");
+    return new Set<string>(Array.isArray(parsed)?parsed.filter((word):word is string=>typeof word==="string"):[]);
+  }catch{
+    return new Set<string>();
+  }
+}
+
+function markShownWord(word:string,set:Set<string>){
+  set.add(word);
+  try{
+    localStorage.setItem("typing-pro-shown-words",JSON.stringify([...set].slice(-1000)));
+  }catch{
+    // Storage is optional; practice still works without it.
+  }
+}
