@@ -123,9 +123,14 @@ export async function fetchSimpleDefinition(word:string,originalDefinition:strin
 
   try{
     const controller=new AbortController();
+    const abortFromParent=()=>controller.abort();
+    if(signal){
+      if(signal.aborted)return originalDefinition;
+      signal.addEventListener("abort",abortFromParent,{once:true});
+    }
     const timer=window.setTimeout(()=>controller.abort(),5000);
     try{
-      const response=await fetch("/api/word-details?word="+encodeURIComponent(clean)+"&mode=summary",{signal});
+      const response=await fetch("/api/word-details?word="+encodeURIComponent(clean)+"&mode=summary",{signal:controller.signal});
       if(!response.ok)return originalDefinition;
       const data=await response.json() as {simpleDefinition?:unknown};
       const simple=typeof data.simpleDefinition==="string"?data.simpleDefinition.trim():"";
@@ -135,6 +140,7 @@ export async function fetchSimpleDefinition(word:string,originalDefinition:strin
       }
     }finally{
       window.clearTimeout(timer);
+      signal?.removeEventListener("abort",abortFromParent);
     }
   }catch{}
   return originalDefinition;
@@ -145,9 +151,14 @@ export async function fetchWordDetails(word:string,signal?:AbortSignal):Promise<
   if(!clean)return null;
   try{
     const controller=new AbortController();
+    const abortFromParent=()=>controller.abort();
+    if(signal){
+      if(signal.aborted)return null;
+      signal.addEventListener("abort",abortFromParent,{once:true});
+    }
     const timer=window.setTimeout(()=>controller.abort(),6000);
     try{
-      const response=await fetch("/api/word-details?word="+encodeURIComponent(clean)+"&mode=details",{signal});
+      const response=await fetch("/api/word-details?word="+encodeURIComponent(clean)+"&mode=details",{signal:controller.signal});
       if(!response.ok)return null;
       const data=await response.json();
       if(typeof data?.fullDefinition!=="string")return null;
@@ -161,6 +172,7 @@ export async function fetchWordDetails(word:string,signal?:AbortSignal):Promise<
       };
     }finally{
       window.clearTimeout(timer);
+      signal?.removeEventListener("abort",abortFromParent);
     }
   }catch{
     return null;
