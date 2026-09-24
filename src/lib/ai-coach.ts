@@ -32,6 +32,7 @@ async function localJson(system:string,prompt:string){
   }catch{return null}
 }
 function shouldUseLocal(mode:PerformanceMode,allowed:boolean){analysisCount+=1;return allowed&&(mode==="max"||(mode==="balanced"&&analysisCount%10>=7));}
+function stringArray(values:unknown,limit:number){return Array.isArray(values)?values.map(v=>typeof v==="string"?v.trim():String(v??"").trim()).filter((v):v is string=>Boolean(v)).slice(0,limit):[];}
 async function cloud(kind:"quiz"|"practice",payload:unknown){
   try{const response=await fetch("/api/ml/analyze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({kind,...(payload as Record<string,unknown>)})});if(!response.ok)return null;return await response.json();}catch{return null}
 }
@@ -49,11 +50,11 @@ export async function analyzePractice(skills:Record<string,unknown>,recent:Array
   const profile=await probeDeviceRuntime(mode);
   if(shouldUseLocal(mode,profile.localModelAllowed)){
     const result=await localJson("You are Typhelper's local adaptive typing coach. Analyze aggregate typing outcomes only. Choose recommended words only from the supplied word bank. Return JSON {recommendedWords:string[],focusKeys:string[],tips:string[]}.","Word bank: "+WORD_BANK.join(", ")+" Skill map: "+JSON.stringify(skills).slice(0,5000)+" Recent outcomes: "+JSON.stringify(recent).slice(-5000));
-    const words=Array.isArray(result?.recommendedWords)?[...new Set(result.recommendedWords.map((v:any)=>String(v||"").trim().toLowerCase()).filter((v:string)=>WORD_BANK.includes(v)))].slice(0,8):[];
-    if(words.length)return{recommendedWords:words,focusKeys:Array.isArray(result?.focusKeys)?result.focusKeys.slice(0,8):[],tips:Array.isArray(result?.tips)?result.tips.slice(0,4):[],backend:"local"};
+    const words=stringArray(result?.recommendedWords,8).map(v=>v.toLowerCase()).filter(v=>WORD_BANK.includes(v));
+    if(words.length)return{recommendedWords:[...new Set(words)],focusKeys:stringArray(result?.focusKeys,8),tips:stringArray(result?.tips,4),backend:"local"};
   }
   const result=await cloud("practice",{skills,recent});
   if(!result)return null;
-  const words=Array.isArray(result.recommendedWords)?[...new Set(result.recommendedWords.map((v:any)=>String(v||"").trim().toLowerCase()).filter((v:string)=>WORD_BANK.includes(v)))].slice(0,8):[];
-  return{recommendedWords:words,focusKeys:Array.isArray(result.focusKeys)?result.focusKeys:[],tips:Array.isArray(result.tips)?result.tips:[],backend:"cloud"};
+  const words=stringArray(result.recommendedWords,8).map(v=>v.toLowerCase()).filter(v=>WORD_BANK.includes(v));
+  return{recommendedWords:[...new Set(words)],focusKeys:stringArray(result.focusKeys,8),tips:stringArray(result.tips,4),backend:"cloud"};
 }
