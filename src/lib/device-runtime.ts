@@ -92,11 +92,11 @@ export async function probeDeviceRuntime():Promise<DeviceRuntimeProfile>{
 
   const confidence=Math.min(1,
     .25+
-    (cores!==null?.15:0)+
-    (memory!==null?.2:0)+
-    (webnn?.15:0)+
-    (gpu.available?.15:0)+
-    (heapHeadroom!==null?.1:0)
+    (cores!==null ? .15 : 0)+
+    (memory!==null ? .2 : 0)+
+    (webnn ? .15 : 0)+
+    (gpu.available ? .15 : 0)+
+    (heapHeadroom!==null ? .1 : 0)
   );
 
   return{
