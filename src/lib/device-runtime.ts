@@ -1,3 +1,4 @@
+import type{PerformanceMode}from"./performance";
 export type DeviceClass="desktop"|"laptop"|"tablet"|"phone"|"unknown";
 export type RuntimeBackend="webnn"|"webgpu"|"wasm"|"cloud";
 
@@ -21,9 +22,9 @@ export interface DeviceRuntimeProfile{
   confidence:number;
 }
 
-const LOCAL_MODEL_BUDGET_MB=512;
+const LOCAL_MODEL_BUDGET_MB=3072;
 const HIGH_MEMORY_LOCAL_MIN_GB=16;
-const LOCAL_INFERENCE_ENABLED=false;
+const LOCAL_INFERENCE_ENABLED=true;
 
 function getDeviceClass():DeviceClass{
   const ua=navigator.userAgent||"";
@@ -61,7 +62,7 @@ function readHeap(){
   };
 }
 
-export async function probeDeviceRuntime():Promise<DeviceRuntimeProfile>{
+export async function probeDeviceRuntime(mode:PerformanceMode="low"):Promise<DeviceRuntimeProfile>{
   const nav:any=navigator;
   const gpu=await probeWebGPU();
   const webnn=!!nav.ml;
@@ -76,8 +77,9 @@ export async function probeDeviceRuntime():Promise<DeviceRuntimeProfile>{
   const heapHeadroom=heap.limit!==null&&heap.used!==null?Math.max(0,heap.limit-heap.used):null;
   const hasEnoughRam=memory!==null&&memory>=HIGH_MEMORY_LOCAL_MIN_GB;
   const hasHeapHeadroom=heapHeadroom===null||heapHeadroom>=LOCAL_MODEL_BUDGET_MB*2;
-  const accelerated=(webnn||gpu.available);
+  const accelerated=gpu.available;
   const localModelAllowed=(
+    mode!=="low"&&
     LOCAL_INFERENCE_ENABLED&&
     accelerated&&
     hasEnoughRam&&
@@ -87,7 +89,7 @@ export async function probeDeviceRuntime():Promise<DeviceRuntimeProfile>{
   );
 
   const preferredBackend:RuntimeBackend=localModelAllowed
-    ?(webnn?"webnn":"webgpu")
+    ?"webgpu"
     :"cloud";
 
   const confidence=Math.min(1,
