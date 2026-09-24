@@ -3,8 +3,8 @@ import{animate,stagger}from"animejs";
 export function animateWord(el:Element|null){
   if(!el)return;
   animate(el.querySelectorAll(".word-char"),{
-    opacity:[0,1],
-    y:[10,0],
+    y:[8,0],
+    scale:[.985,1],
     duration:280,
     delay:stagger(18),
     ease:"outQuad"
@@ -39,12 +39,13 @@ export function animateDefinition(el:Element|null){
 export function animateWordExit(el:Element|null,onComplete:()=>void){
   if(!el){onComplete();return;}
   const letters=el.querySelectorAll(".word-char");
+  if(!letters.length){onComplete();return;}
   animate(letters,{
-    opacity:[1,0],
     y:[0,-8],
+    scale:[1,.985],
     duration:130,
     delay:stagger(8),
     ease:"inQuad",
-    complete:onComplete
+    onComplete
   });
 }
