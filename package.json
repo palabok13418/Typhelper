@@ -1,6 +1,6 @@
 {
   "name":"typing-pro",
-  "version":"0.2.0",
+  "version":"0.2.1",
   "private":true,
   "type":"module",
   "scripts":{"dev":"vite","build":"tsc -b && vite build","typecheck":"tsc --noEmit","train:score":"python scripts/train_score_head.py"},
@@ -8,6 +8,7 @@
     "@clerk/react":"^6.15.2",
     "@mediapipe/tasks-vision":"^1.0.1",
     "@mlc-ai/web-llm":"^0.2.85",
+    "animejs":"^4.5.0",
     "lucide-react":"^1.47.0",
     "react":"^19.1.1",
     "react-dom":"^19.1.1"
