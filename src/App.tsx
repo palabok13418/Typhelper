@@ -12,7 +12,6 @@ import{FUNCTION_ROW,MAC_BOTTOM_ROW,MAC_ROWS,WINDOWS_BOTTOM_ROW,WINDOWS_COPILOT_B
 import{fingerClass}from"./lib/finger-map";
 import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateSession,animateWord,animateWordExit}from"./lib/animations";
 import{analyzePractice,analyzeQuiz}from"./lib/ai-coach";
-import{probeDeviceRuntime,runtimeSummary,type DeviceRuntimeProfile}from"./lib/device-runtime";
 import{connectPhysicalKeyboard,hasWebHID,observeKeyboardKey,readKeyboardProfile,type KeyboardProfile}from"./lib/keyboard-profile";
 import{readPerformanceMode,savePerformanceMode,performanceModeLabel,type PerformanceMode}from"./lib/performance";
 import{fetchPracticeBatch,fetchSimpleDefinition,fetchWordDetails,type PracticeWord,type WordDetails}from"./lib/word-api";
@@ -46,7 +45,6 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const[fingerColors,setFingerColors]=useState(()=>localStorage.getItem("typing-pro-finger-colors")!=="false");
   const[visionEnabled,setVisionEnabled]=useState(()=>localStorage.getItem("typing-pro-vision-enabled")==="true");
   const[performanceMode,setPerformanceMode]=useState<PerformanceMode>(()=>readPerformanceMode());
-  const[runtimeProfile,setRuntimeProfile]=useState<DeviceRuntimeProfile|null>(null);
   const[physicalKeyboard,setPhysicalKeyboard]=useState<KeyboardProfile|null>(()=>readKeyboardProfile());
   const[keyboardError,setKeyboardError]=useState<string|null>(null);
   const learner=useRef<PersonalModel|null>(null);
@@ -77,13 +75,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
 
   useEffect(()=>{skills.current=p.skillMap},[p.skillMap]);
 
-  useEffect(()=>{
-    savePerformanceMode(performanceMode);
-    let cancelled=false;
-    setRuntimeProfile(null);
-    void probeDeviceRuntime(performanceMode).then(profile=>{if(!cancelled)setRuntimeProfile(profile)}).catch(()=>{});
-    return()=>{cancelled=true};
-  },[performanceMode]);
+  useEffect(()=>{savePerformanceMode(performanceMode)},[performanceMode]);
   useEffect(()=>save(p),[p]);
 
   const finishEntryCountUp=useCallback(()=>setAnimateWordsOnEntry(false),[]);
