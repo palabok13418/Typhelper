@@ -26,6 +26,16 @@ const LOCAL_MODEL_BUDGET_MB=3072;
 const HIGH_MEMORY_LOCAL_MIN_GB=16;
 const LOCAL_INFERENCE_ENABLED=true;
 
+export function isComputerDevice(){
+  if(typeof navigator==="undefined")return true;
+  const nav:any=navigator;
+  if(nav.userAgentData?.mobile===true)return false;
+  const ua=String(nav.userAgent||"");
+  if(/Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(ua))return false;
+  const platform=String(nav.userAgentData?.platform||nav.platform||"").toLowerCase();
+  return /windows|mac|linux|cros|freebsd|openbsd/i.test(platform);
+}
+
 function getDeviceClass():DeviceClass{
   const ua=navigator.userAgent||"";
   const mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(ua);
