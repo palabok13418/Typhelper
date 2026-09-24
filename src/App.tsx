@@ -5,7 +5,7 @@ import{load,save}from"./lib/storage";
 import{learn,randomWord}from"./lib/typing";
 import{GazeMonitor}from"./lib/gaze";
 import{scoreWebNN}from"./lib/webnn";
-import{createQuiz,scoreQuiz,type QuizScore}from"./lib/quiz";
+import{createQuiz,nextChallengeWord,scoreQuiz,scoreSentenceChallenge,type ChallengeWord,type QuizScore,type SentenceChallengeScore}from"./lib/quiz";
 import{PersonalModel}from"./lib/personal-model";
 import{VisionBridge}from"./lib/vision-bridge";
 import{FUNCTION_ROW,MAC_BOTTOM_ROW,MAC_ROWS,WINDOWS_BOTTOM_ROW,WINDOWS_COPILOT_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
@@ -601,31 +601,40 @@ function WordDetailsModal({word,details,loading,error,close}:{word:string;detail
 
 function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMap:Progress["skillMap"];performanceMode:PerformanceMode;onClose:()=>void;onFinish:(result:QuizResult,target:string,answer:string)=>void;onRecord:(event:{kind:"key";expected:string;actual:string;latency:number}|{kind:"word";word:string;correct:boolean;duration:number})=>void}){
   const[phase,setPhase]=useState<"intro"|"running"|"analyzing"|"result">("intro");
+  const[part,setPart]=useState<"typing"|"sentence">("typing");
   const[gaze,setGaze]=useState<GazeState>("unknown");
   const[paused,setPaused]=useState(false);
   const[answer,setAnswer]=useState("");
+  const[challengeAnswer,setChallengeAnswer]=useState("");
   const[score,setScore]=useState<QuizScore|null>(null);
   const[error,setError]=useState("");
   const[cameraStatus,setCameraStatus]=useState<"checking"|"ready"|"permission"|"busy">("checking");
+  const[challengeWord,setChallengeWord]=useState<ChallengeWord|null>(null);
+  const[challengeDetails,setChallengeDetails]=useState<WordDetails|null>(null);
+  const[challengeLoading,setChallengeLoading]=useState(false);
+  const[sentenceScore,setSentenceScore]=useState<SentenceChallengeScore|null>(null);
   const target=useRef(createQuiz(skillMap));
   const started=useRef(0);
   const times=useRef<number[]>([]);
   const backspaces=useRef(0);
   const focus=useRef(0);
   const lastKey=useRef(performance.now());
+  const typingAnswer=useRef("");
+  const challengeStarted=useRef(0);
   const video=useRef<HTMLVideoElement>(null);
   const monitor=useRef<GazeMonitor|null>(null);
   const previous=useRef<GazeState>("unknown");
   const hadError=useRef(false);
   const finishing=useRef(false);
   const cameraStream=useRef<MediaStream|null>(null);
+  const challengeRequest=useRef<AbortController|null>(null);
   const screenRef=useRef<HTMLElement|null>(null);
 
   useEffect(()=>{
     const el=screenRef.current;
     if(!el)return;
     el.animate([{opacity:0,transform:"translateY(10px)"},{opacity:1,transform:"translateY(0)"}],{duration:420,easing:"cubic-bezier(.22,1,.36,1)"});
-  },[phase]);
+  },[phase,part]);
 
   useEffect(()=>{
     if(phase!=="intro")return;
@@ -654,14 +663,21 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
     return()=>{cancelled=true};
   },[phase]);
 
-  useEffect(()=>()=>{monitor.current?.stop(video.current||undefined);cameraStream.current?.getTracks().forEach(track=>track.stop())},[]);
+  useEffect(()=>()=>{challengeRequest.current?.abort();monitor.current?.stop(video.current||undefined);cameraStream.current?.getTracks().forEach(track=>track.stop())},[]);
 
   useEffect(()=>{
     if(phase!=="running")return;
     let cancelled=false;
     const startCamera=async()=>{
       try{
-        const stream=cameraStream.current??await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640},height:{ideal:480}},audio:false});
+        let stream=cameraStream.current;
+        const live=stream?.getVideoTracks().some(track=>track.readyState==="live");
+        if(!stream||!live){
+          stream=await navigator.mediaDevices.getUserMedia({
+            video:{facingMode:"user",width:{ideal:640},height:{ideal:480},frameRate:{ideal:30,max:30}},
+            audio:false
+          });
+        }
         if(cancelled){stream.getTracks().forEach(track=>track.stop());return;}
         cameraStream.current=stream;
         const videoEl=video.current;
@@ -669,6 +685,7 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
         const m=new GazeMonitor();
         monitor.current=m;
         await m.start(videoEl,handleGaze,stream);
+        setCameraStatus("ready");
         if(cancelled)m.stop(videoEl);
       }catch(error){
         if(cancelled)return;
@@ -685,7 +702,7 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
   },[phase]);
 
   useEffect(()=>{
-    if(phase!=="running")return;
+    if(phase!=="running"||part!=="typing")return;
     const handleKeyDown=(event:KeyboardEvent)=>{
       if(paused||finishing.current)return;
       if(event.ctrlKey||event.metaKey||event.altKey)return;
@@ -714,13 +731,15 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
       const next=answer+actual;
       setAnswer(next);
       if(next.length===target.current.length){
+        typingAnswer.current=next;
         onRecord({kind:"word",word:target.current,correct:!hadError.current,duration:Date.now()-started.current});
-        void finish(next);
+        hadError.current=false;
+        void loadChallenge();
       }
     };
     window.addEventListener("keydown",handleKeyDown);
     return()=>window.removeEventListener("keydown",handleKeyDown);
-  },[phase,paused,answer,onRecord]);
+  },[phase,part,paused,answer,onRecord]);
 
   function handleGaze(state:GazeState){
     setGaze(state);
@@ -729,15 +748,59 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
     previous.current=state;
   }
 
+  async function loadChallenge(){
+    challengeRequest.current?.abort();
+    const controller=new AbortController();
+    challengeRequest.current=controller;
+    const next=nextChallengeWord();
+    setChallengeWord(next);
+    setChallengeAnswer("");
+    setChallengeDetails(null);
+    setSentenceScore(null);
+    setChallengeLoading(true);
+    challengeStarted.current=Date.now();
+    setPart("sentence");
+
+    try{
+      const details=await fetchWordDetails(next.word,controller.signal);
+      if(controller.signal.aborted)return;
+      setChallengeDetails(details);
+    }finally{
+      if(challengeRequest.current===controller)challengeRequest.current=null;
+      if(!controller.signal.aborted)setChallengeLoading(false);
+    }
+  }
+
   async function start(){
     setError("");
     try{
-      const stream=cameraStream.current??await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640},height:{ideal:480}},audio:false});
-      cameraStream.current=stream;
+      let stream=cameraStream.current;
+      const live=stream?.getVideoTracks().some(track=>track.readyState==="live");
+      if(!stream||!live){
+        stream=await navigator.mediaDevices.getUserMedia({
+          video:{facingMode:"user",width:{ideal:640},height:{ideal:480},frameRate:{ideal:30,max:30}},
+          audio:false
+        });
+        cameraStream.current=stream;
+      }
+      setCameraStatus("ready");
       started.current=Date.now();
       lastKey.current=performance.now();
+      times.current=[];
+      backspaces.current=0;
+      focus.current=0;
+      hadError.current=false;
       finishing.current=false;
+      typingAnswer.current="";
       setAnswer("");
+      setChallengeAnswer("");
+      setChallengeWord(null);
+      setChallengeDetails(null);
+      setSentenceScore(null);
+      setPaused(false);
+      setGaze("unknown");
+      previous.current="unknown";
+      setPart("typing");
       setPhase("running");
     }catch(e){
       setCameraStatus("busy");
@@ -745,14 +808,21 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
     }
   }
 
-  async function finish(finalAnswer=answer){
-    if(phase!=="running"||finishing.current)return;
+  async function finish(challengeResult:SentenceChallengeScore){
+    if(phase!=="running"||finishing.current||!challengeWord)return;
     finishing.current=true;
-    monitor.current?.stop(video.current||undefined);
-    const local=scoreQuiz(target.current,finalAnswer,started.current,times.current,backspaces.current,focus.current);
+    const typingText=typingAnswer.current;
+    const local=scoreQuiz(target.current,typingText,started.current,times.current,backspaces.current,focus.current);
     setPhase("analyzing");
-    const ai=await analyzeQuiz({stats:local.stats as unknown as Record<string,unknown>,focusPauses:local.focusPauses,target:target.current,answer:finalAnswer},performanceMode);
-    let aiScore=ai.score;
+
+    const ai=await analyzeQuiz({
+      stats:local.stats as unknown as Record<string,unknown>,
+      focusPauses:local.focusPauses,
+      target:target.current,
+      answer:typingText
+    },performanceMode);
+
+    let typingScore=ai.score;
     let backend=ai.backend==="local"?"Local AI":ai.backend==="cloud"?"Cloud AI":"Fallback scoring";
     if(ai.backend==="fallback"){
       const fallback=await scoreWebNN([
@@ -765,23 +835,72 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
         Math.max(0,1-Math.max(0,local.stats.avgLatencyMs-85)/280),
         Math.max(0,1-local.stats.errorRate*1.2)
       ]);
-      aiScore=fallback.score;
+      typingScore=fallback.score;
       backend=fallback.backend;
     }
-    const final={...local,score:aiScore,backend};
-    const tips=ai.backend==="fallback"?(local.tips):(ai.tips.length?ai.tips:local.tips);
-    setScore({...final,tips});
+
+    onRecord({
+      kind:"word",
+      word:challengeWord.word,
+      correct:challengeResult.usesWord,
+      duration:Date.now()-challengeStarted.current
+    });
+
+    const combinedScore=Math.round(typingScore*.7+challengeResult.score*.3);
+    const analysisTips=ai.backend==="fallback"?local.tips:(ai.tips.length?ai.tips:local.tips);
+    const tips=[...new Set([...challengeResult.tips,...analysisTips])].slice(0,4);
+    const final={
+      ...local,
+      score:combinedScore,
+      backend:backend+" + vocabulary",
+      tips,
+      sentenceScore:challengeResult.score,
+      challengeWord:challengeWord.word
+    };
+
+    setScore(final);
+    setSentenceScore(challengeResult);
     setPhase("result");
-    onFinish({id:crypto.randomUUID(),createdAt:Date.now(),score:final.score,stats:final.stats,focusPauses:final.focusPauses},target.current,finalAnswer);
+    onFinish({
+      id:crypto.randomUUID(),
+      createdAt:Date.now(),
+      score:final.score,
+      stats:final.stats,
+      focusPauses:final.focusPauses,
+      sentenceScore:challengeResult.score,
+      challengeWord:challengeWord.word
+    },target.current,typingText);
   }
 
-  if(phase==="analyzing")return <main className="checkin-page checkin-result-page" ref={screenRef}><header className="checkin-header"><div><div className="modal-step">Analyzing check-in</div><h1>Your typing results are being prepared</h1></div></header><section className="checkin-result-shell"><div className="checkin-analysis-state"><div className="analysis-spinner"></div><strong>Analyzing your typing</strong><span>{performanceMode==="max"?"Using on-device AI when available.":performanceMode==="balanced"?"Choosing cloud or on-device AI based on your settings and hardware.":"Using cloud AI for the analysis."}</span></div></section></main>;
+  function submitChallenge(){
+    if(!challengeWord||paused||finishing.current)return;
+    const result=scoreSentenceChallenge(
+      challengeWord.word,
+      challengeAnswer,
+      challengeDetails?.simpleDefinition||challengeDetails?.fullDefinition||challengeWord.definition,
+      challengeDetails?.synonyms?.length?challengeDetails.synonyms:challengeWord.synonyms
+    );
+    setSentenceScore(result);
+    void finish(result);
+  }
+
+  if(phase==="analyzing")return <main className="checkin-page checkin-result-page" ref={screenRef}>
+    <header className="checkin-header"><div><div className="modal-step">Analyzing check-in</div><h1>Your typing results are being prepared</h1></div></header>
+    <section className="checkin-result-shell"><div className="checkin-analysis-state"><div className="analysis-spinner"></div><strong>Analyzing both parts</strong><span>{performanceMode==="max"?"Using on-device AI when available.":performanceMode==="balanced"?"Choosing cloud or on-device AI based on your settings and hardware.":"Using cloud AI for the typing analysis."}</span></div></section>
+  </main>;
 
   if(phase==="result"&&score)return <main className="checkin-page checkin-result-page" ref={screenRef}>
     <header className="checkin-header"><div><div className="modal-step">Check-in complete</div><h1>Your typing results</h1></div><button className="icon-action" onClick={onClose} aria-label="Close check-in"><X size={17}/></button></header>
     <section className="checkin-result-shell">
-      <div className="checkin-score"><span>Score</span><strong>{score.score}</strong><small>/100</small></div>
-      <div className="result-metrics"><div><span>WPM</span><strong>{score.stats.wpm.toFixed(0)}</strong></div><div><span>Accuracy</span><strong>{(score.stats.accuracy*100).toFixed(0)}%</strong></div><div><span>Consistency</span><strong>{(score.stats.consistency*100).toFixed(0)}%</strong></div><div><span>Focus pauses</span><strong>{score.focusPauses}</strong></div></div>
+      <div className="checkin-score"><span>Overall</span><strong>{score.score}</strong><small>/100</small></div>
+      <div className="result-metrics">
+        <div><span>Typing WPM</span><strong>{score.stats.wpm.toFixed(0)}</strong></div>
+        <div><span>Accuracy</span><strong>{(score.stats.accuracy*100).toFixed(0)}%</strong></div>
+        <div><span>Consistency</span><strong>{(score.stats.consistency*100).toFixed(0)}%</strong></div>
+        <div><span>Focus pauses</span><strong>{score.focusPauses}</strong></div>
+        <div><span>Sentence</span><strong>{score.sentenceScore??"—"}</strong></div>
+      </div>
+      {score.challengeWord&&<div className="challenge-result-note"><span>New word</span><strong>{score.challengeWord}</strong></div>}
       <div className="result-list"><div className="mini-label">Things to improve</div>{score.tips.map(item=><div className="tip" key={item}><Check size={14}/><span>{item}</span></div>)}</div>
       <div className="checkin-result-footer"><span>analyzed with {score.backend}</span><button className="solid-action" onClick={onClose}>Back to practice</button></div>
     </section>
@@ -792,26 +911,50 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
     <section className="checkin-intro-shell">
       <div className="checkin-intro-copy">
         <div className="checkin-icon"><Keyboard size={24}/></div>
-        <h2>Finish when you’re done.</h2>
-        <p>Type the passage at your own pace. When you finish, Typhelper analyzes your speed, accuracy, consistency, corrections, and screen focus.</p>
-        <div className="checkin-note"><Camera size={15}/><span>{cameraStatus==="ready"?"Your camera is ready for the check-in.":cameraStatus==="busy"?"The camera is unavailable or already in use.":"Camera permission is needed for focus detection."}</span></div>
+        <h2>Two parts. One check-in.</h2>
+        <p>First, type a unique passage without looking down. Then you’ll get a new vocabulary word with its definition and synonyms and write one original sentence using it.</p>
+        <div className="checkin-note"><Camera size={15}/><span>{cameraStatus==="ready"?"Your camera is ready for focus detection.":cameraStatus==="busy"?"The camera is unavailable or already in use.":"Camera permission is needed for focus detection."}</span></div>
         {error&&<div className="permission-error">{error}</div>}
         <div className="checkin-actions"><button className="outline-action" onClick={onClose}>Not now</button><button className="solid-action" onClick={start}>{cameraStatus==="ready"?"Start check-in":"Allow camera & start"} <ChevronRight size={16}/></button></div>
       </div>
-      <div className="checkin-intro-preview"><div className="checkin-preview-top"><span>What happens</span><Camera size={15}/></div><div className="checkin-step"><strong>01</strong><span>Typhelper checks whether camera permission is already ready.</span></div><div className="checkin-step"><strong>02</strong><span>Type the full passage with your physical keyboard.</span></div><div className="checkin-step"><strong>03</strong><span>When you finish, AI analyzes the result and gives you improvements.</span></div></div>
+      <div className="checkin-intro-preview"><div className="checkin-preview-top"><span>What happens</span><Camera size={15}/></div><div className="checkin-step"><strong>01</strong><span>Your camera is checked before the test starts.</span></div><div className="checkin-step"><strong>02</strong><span>Type the unique passage while focus detection watches for keyboard glances.</span></div><div className="checkin-step"><strong>03</strong><span>Use the new vocabulary word in your own sentence.</span></div></div>
+    </section>
+  </main>;
+
+  if(part==="sentence"&&challengeWord)return <main className="checkin-page checkin-running-page" ref={screenRef}>
+    <header className="checkin-header"><div><div className="modal-step">Part 2 of 2 · Vocabulary</div><h1>Use the new word</h1></div><button className="quiet-action" onClick={()=>void submitChallenge()}>Submit sentence</button></header>
+    <section className="checkin-running-shell sentence-challenge-shell">
+      <div className="checkin-live-bar"><span>{paused?"Paused · look back at the screen":gaze==="screen"?"Screen focus":"Checking focus"}</span><strong>New word</strong></div>
+      <div className="sentence-challenge">
+        <div className="modal-step">Challenge word</div>
+        <div className="challenge-word">{challengeWord.word}</div>
+        <div className="challenge-label">Definition</div>
+        <p className="challenge-definition">{challengeDetails?.simpleDefinition||challengeDetails?.fullDefinition||challengeWord.definition}</p>
+        <div className="challenge-label">Synonyms</div>
+        <div className="challenge-synonyms">{(challengeDetails?.synonyms?.length?challengeDetails.synonyms:challengeWord.synonyms).slice(0,6).map(item=><span key={item}>{item}</span>)}</div>
+        {challengeLoading&&<div className="challenge-loading">Getting a fuller dictionary explanation…</div>}
+        <textarea
+          value={challengeAnswer}
+          onChange={event=>setChallengeAnswer(event.target.value)}
+          placeholder={"Write one original sentence using “"+challengeWord.word+"”."}
+          aria-label={"Write a sentence using "+challengeWord.word}
+          disabled={paused}
+          autoFocus
+        />
+        <div className="challenge-prompt-row"><span>{paused?"Look back at the screen to keep typing.":"Use the word naturally. Don’t copy the definition."}</span><strong>{challengeAnswer.trim().length} chars</strong></div>
+        {sentenceScore&&<div className="challenge-feedback"><strong>Sentence check: {sentenceScore.score}/100</strong><span>{sentenceScore.tips[0]}</span></div>}
+        <button className="solid-action challenge-submit" onClick={submitChallenge} disabled={paused||challengeAnswer.trim().length<6}>{paused?"Look back at the screen":"Check sentence"} <ChevronRight size={16}/></button>
+      </div>
+      <video ref={video} muted playsInline className="vision-probe" aria-hidden="true" tabIndex={-1}/>
     </section>
   </main>;
 
   return <main className="checkin-page checkin-running-page" ref={screenRef}>
-    <header className="checkin-header"><div><div className="modal-step">Typing check-in</div><h1>Type the passage below</h1></div><button className="quiet-action" onClick={()=>void finish()}>Finish check-in</button></header>
+    <header className="checkin-header"><div><div className="modal-step">Part 1 of 2 · Typing</div><h1>Type the passage</h1></div><button className="quiet-action" onClick={()=>void loadChallenge()} disabled={answer.length<target.current.length}>Skip to vocabulary</button></header>
     <section className="checkin-running-shell">
-      <div className="checkin-live-bar"><span>{paused?"Paused · look back at the screen":gaze==="screen"?"Screen focus":"Checking focus"}</span><strong>{answer.length} / {target.current.length}</strong></div>
+      <div className="checkin-live-bar"><span>{paused?"Paused · look back at the screen":gaze==="screen"?"Screen focus":"Calibrating focus"}</span><strong>{answer.length} / {target.current.length}</strong></div>
       <div className="quiz-target checkin-target" aria-live="polite">{[...target.current].map((char,i)=><span key={i} className={i<answer.length?(answer[i]===char?"typed":"miss"):""}>{char}</span>)}</div>
-      <div className="checkin-instruction">{paused?"Look back at the screen to continue":"Keep typing until the passage is complete."}</div>
-      <div className="checkin-lower">
-        <div className="camera-preview checkin-camera"><video ref={video} muted playsInline/><div><Camera size={15}/><span>{paused?"check-in paused":"focus assist on"}</span></div></div>
-        <div className="checkin-side-info"><div><Keyboard size={16}/><span>Use your normal physical keyboard.</span></div><div><Check size={16}/><span>Backspace is supported. Your keystrokes are used only for this check-in.</span></div><div><Gauge size={16}/><span>There is no time limit.</span></div></div>
-      </div>
+      <video ref={video} muted playsInline className="vision-probe" aria-hidden="true" tabIndex={-1}/>
     </section>
   </main>;
 }
