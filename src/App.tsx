@@ -11,14 +11,14 @@ import{VisionBridge}from"./lib/vision-bridge";
 import{FUNCTION_ROW,MAC_BOTTOM_ROW,MAC_ROWS,WINDOWS_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
 import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateSession,animateWord,animateWordExit}from"./lib/animations";
 import{quietlyRefineProfile}from"./lib/local-model";
-import{fetchPracticeWord,type PracticeWord}from"./lib/word-api";
+import{fetchPracticeBatch,type PracticeWord}from"./lib/word-api";
 import type{GazeState,Progress,QuizResult}from"./types";
 
 type KeyboardStyle="windows"|"mac";
 
 export default function App({clerk=false}:{clerk?:boolean}){
   const[p,setP]=useState<Progress>(()=>load());
-  const[word,setWord]=useState("");
+  const[word,setWord]=useState("type");
   const[index,setIndex]=useState(0);
   const[wrong,setWrong]=useState(false);
   const[stuck,setStuck]=useState(false);
@@ -44,26 +44,37 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const definitionRef=useRef<HTMLDivElement>(null);
   const keyboardRef=useRef<HTMLDivElement>(null);
   const shownWords=useRef<Set<string>>(readShownWords());
-  const pendingWord=useRef<{previous:string;data:PracticeWord}|null>(null);
+  const wordQueue=useRef<PracticeWord[]>([]);
+  const queueRequest=useRef<AbortController|null>(null);
   const workspaceRef=useRef<HTMLElement>(null);
 
   useEffect(()=>{skills.current=p.skillMap},[p.skillMap]);
   useEffect(()=>save(p),[p]);
 
   useEffect(()=>{
-    const controller=new AbortController();
-    const show=({word:nextWord,definition:nextDefinition,isNew}:PracticeWord)=>{
-      setWord(nextWord);
-      setWordIsNew(isNew);
-      setDefinition(isNew ? (nextDefinition ?? "Meaning unavailable") : null);
-      if(isNew)markShownWord(nextWord,shownWords.current);
-      wordStarted.current=performance.now();
-    };
-    void fetchPracticeWord("",shownWords.current,controller.signal).then(show).catch(()=>show({word:randomWord(p.skillMap),definition:null,isNew:false}));
     learner.current=new PersonalModel({skills:p.skillMap,transitions:{},fatigue:0});
     learner.current.onUpdate(snapshot=>{skills.current=snapshot.skills});
     const sync=window.setInterval(()=>setP(current=>({...current,skillMap:skills.current})),2500);
-    return()=>{controller.abort();window.clearInterval(sync);learner.current?.dispose()};
+
+    const controller=new AbortController();
+    queueRequest.current=controller;
+    const blocked=new Set([...shownWords.current,word]);
+    void fetchPracticeBatch(shownWords.current,blocked,controller.signal)
+      .then(batch=>{
+        if(controller.signal.aborted)return;
+        wordQueue.current.push(...batch);
+      })
+      .catch(()=>{})
+      .finally(()=>{
+        if(queueRequest.current===controller)queueRequest.current=null;
+      });
+
+    return()=>{
+      controller.abort();
+      queueRequest.current=null;
+      window.clearInterval(sync);
+      learner.current?.dispose();
+    };
   },[]);
 
   useEffect(()=>{
@@ -81,14 +92,26 @@ export default function App({clerk=false}:{clerk?:boolean}){
   useEffect(()=>{
     if(!word)return;
     requestAnimationFrame(()=>animateWord(wordRef.current));
-    const controller=new AbortController();
-    const existing=pendingWord.current;
-    if(!existing||existing.previous!==word){
-      void fetchPracticeWord(word,shownWords.current,controller.signal)
-        .then(data=>{if(!controller.signal.aborted)pendingWord.current={previous:word,data}})
-        .catch(()=>{});
+    if(wordQueue.current.length<=3&&queueRequest.current===null){
+      const controller=new AbortController();
+      queueRequest.current=controller;
+      const blocked=new Set([...shownWords.current,word,...wordQueue.current.map(item=>item.word)]);
+      void fetchPracticeBatch(shownWords.current,blocked,controller.signal)
+        .then(batch=>{
+          if(controller.signal.aborted)return;
+          const queued=new Set(wordQueue.current.map(item=>item.word));
+          for(const item of batch){
+            if(item.word!==word&&!queued.has(item.word)){
+              wordQueue.current.push(item);
+              queued.add(item.word);
+            }
+          }
+        })
+        .catch(()=>{})
+        .finally(()=>{
+          if(queueRequest.current===controller)queueRequest.current=null;
+        });
     }
-    return()=>controller.abort();
   },[word]);
 
   useEffect(()=>{
@@ -168,9 +191,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
         learner.current?.record({kind:"word",word,correct:!hadError.current,duration:now-wordStarted.current});
         setP(current=>({...current,totalPracticeWords:current.totalPracticeWords+1}));
         hadError.current=false;
-        const prepared=pendingWord.current?.previous===word?pendingWord.current.data:null;
-        pendingWord.current=null;
-        const next=prepared??{word:randomWord(skills.current,word),definition:null,isNew:false};
+        const next=wordQueue.current.shift()??{word:randomWord(skills.current,word),definition:null,isNew:false};
         const advance=()=>{
           setWord(next.word);
           setWordIsNew(next.isNew);
