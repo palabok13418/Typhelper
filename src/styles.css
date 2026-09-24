@@ -135,6 +135,19 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 }
 .details-modal h2{margin:8px 0 0;font-size:34px;letter-spacing:-.045em}
 .details-loading{margin-top:20px;border:1px solid var(--line);border-radius:13px;padding:14px;background:#fbfbf9;color:var(--muted);font-size:12px}
+.word-form-notice{
+  display:flex;align-items:flex-start;gap:10px;margin-top:18px;padding:12px 13px;
+  border:1px solid var(--line);border-radius:13px;background:#f7f7f5;color:#62656c
+}
+.word-form-notice-icon{
+  width:28px;height:28px;flex:0 0 auto;display:grid;place-items:center;
+  border:1px solid var(--line);border-radius:8px;background:#fff;color:#6a6d73
+}
+.word-form-notice strong{display:block;font-size:11px;line-height:1.5;color:#4b4e55}
+.word-form-notice strong b{color:#202124}
+.word-form-notice span{display:block;margin-top:4px;font-size:10px;line-height:1.5;color:#85888e}
+.word-form-notice span b{color:#55585f}
+.original-word-section .details-definition{background:#f7f7f5}
 .details-section{margin-top:20px}
 .details-label{
   font-size:10px;text-transform:uppercase;letter-spacing:.11em;color:#8a8d92;font-weight:700;margin-bottom:9px

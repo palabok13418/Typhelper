@@ -19,6 +19,10 @@ export interface WordDetails{
   synonyms:string[];
   antonyms:string[];
   examples:string[];
+  alternateOf:string|null;
+  alternateOfType:string|null;
+  alternateOfDefinition:string|null;
+  alternateOfSimpleDefinition:string|null;
 }
 
 function cleanWord(value:string){
@@ -168,7 +172,11 @@ export async function fetchWordDetails(word:string,signal?:AbortSignal):Promise<
         simpleDefinition:typeof data.simpleDefinition==="string"?data.simpleDefinition:"",
         synonyms:Array.isArray(data.synonyms)?data.synonyms.filter((value:any):value is string=>typeof value==="string"):[],
         antonyms:Array.isArray(data.antonyms)?data.antonyms.filter((value:any):value is string=>typeof value==="string"):[],
-        examples:Array.isArray(data.examples)?data.examples.filter((value:any):value is string=>typeof value==="string").slice(0,2):[]
+        examples:Array.isArray(data.examples)?data.examples.filter((value:any):value is string=>typeof value==="string").slice(0,2):[],
+        alternateOf:typeof data.alternateOf==="string"?data.alternateOf:null,
+        alternateOfType:typeof data.alternateOfType==="string"?data.alternateOfType:null,
+        alternateOfDefinition:typeof data.alternateOfDefinition==="string"?data.alternateOfDefinition:null,
+        alternateOfSimpleDefinition:typeof data.alternateOfSimpleDefinition==="string"?data.alternateOfSimpleDefinition:null
       };
     }finally{
       window.clearTimeout(timer);

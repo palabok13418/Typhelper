@@ -31,6 +31,99 @@ function wiktionaryDefinitions(data){
     .map(item=>typeof item?.definition==="string"?cleanText(item.definition):"").filter(Boolean);
 }
 
+const FORM_TEMPLATES={
+  "alternative form of":"alternative form",
+  "alternative spelling of":"alternative spelling",
+  "alternative case form of":"alternative case form",
+  "standard spelling of":"standard spelling",
+  "standard form of":"standard form",
+  "informal form of":"informal form",
+  "nonstandard form of":"nonstandard form",
+  "archaic form of":"archaic form",
+  "obsolete form of":"obsolete form",
+  "dated form of":"dated form",
+  "inflection of":"inflected form",
+  "verb form of":"verb form",
+  "noun form of":"noun form",
+  "adjective form of":"adjective form",
+  "adj form of":"adjective form",
+  "plural of":"plural form",
+  "singular of":"singular form",
+  "past of":"past-tense form",
+  "past participle of":"past-participle form",
+  "present participle of":"present-participle form",
+  "third-person singular of":"third-person singular form",
+  "comparative of":"comparative form",
+  "superlative of":"superlative form"
+};
+
+function stripWikitext(value){
+  return String(value||"")
+    .replace(/\[\[[^\]|]*\|([^\]]+)\]\]/g,"$1")
+    .replace(/\[\[([^\]]+)\]\]/g,"$1")
+    .replace(/<[^>]*>/g," ")
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+function cleanTemplateTerm(value){
+  return stripWikitext(value)
+    .replace(/<[^>]*>/g,"")
+    .replace(/\([^)]*\)/g,"")
+    .split(",")[0]
+    .trim()
+    .toLowerCase();
+}
+
+function findWiktionaryPageText(data){
+  const value=data?.parse?.wikitext;
+  if(typeof value==="string")return value;
+  if(typeof value?.["*"]==="string")return value["*"];
+  if(typeof value?.content==="string")return value.content;
+  return"";
+}
+
+function detectFormRelation(wikitext,currentWord){
+  const pattern=/\{\{\s*([^|}\n]+?)\s*\|([^}]+?)\}\}/gi;
+  let match;
+  while((match=pattern.exec(wikitext))){
+    const template=match[1].trim().toLowerCase();
+    const type=FORM_TEMPLATES[template];
+    if(!type)continue;
+
+    const args=match[2].split("|").map(item=>item.trim()).filter(Boolean);
+    const positional=[];
+    for(const arg of args){
+      const equals=arg.indexOf("=");
+      if(equals>0&&/^[a-z][a-z0-9_-]*$/i.test(arg.slice(0,equals).trim()))continue;
+      positional.push(arg);
+    }
+
+    if((positional[0]||"").toLowerCase()!=="en")continue;
+    const original=cleanTemplateTerm(positional[1]||"");
+    if(!original||original===currentWord||!/^[a-z]+$/.test(original))continue;
+    return{word:original,type};
+  }
+  return null;
+}
+
+async function findAlternateOf(word){
+  try{
+    const response=await fetchWithTimeout(
+      "https://en.wiktionary.org/w/api.php?action=parse&format=json&formatversion=2&prop=wikitext&redirects=true&origin=*&page="+encodeURIComponent(word),
+      {headers:{accept:"application/json","user-agent":"Typing-Pro/0.2 (word-form-detection)"}},
+      SECONDARY_TIMEOUT_MS
+    );
+    if(!response.ok)return null;
+    const data=await response.json().catch(()=>null);
+    const wikitext=findWiktionaryPageText(data);
+    if(!wikitext)return null;
+    return detectFormRelation(wikitext,word);
+  }catch{
+    return null;
+  }
+}
+
 async function findDefinitions(word){
   try{
     const response=await fetchWithTimeout("https://api.dictionaryapi.dev/api/v2/entries/en/"+encodeURIComponent(word),{headers:{accept:"application/json"}},PRIMARY_TIMEOUT_MS);
@@ -108,11 +201,45 @@ export default async function handler(request,response){
   const word=(url.searchParams.get("word")||"").trim().toLowerCase();
   const mode=url.searchParams.get("mode")==="summary"?"summary":"details";
   if(!/^[a-z]+$/.test(word))return response.status(400).json({error:"A single English word is required."});
-  const definitions=await findDefinitions(word);
-  if(!definitions.length)return response.status(404).json({error:"Definition not found."});
-  const ai=await askGroq(word,definitions);
+  const [definitions,alternateOf]=await Promise.all([
+    findDefinitions(word),
+    findAlternateOf(word)
+  ]);
+
+  let resolvedDefinitions=definitions;
+  let alternateDefinition=null;
+  if(alternateOf){
+    const primaryDefinitions=await findDefinitions(alternateOf.word);
+    alternateDefinition=primaryDefinitions.length?primaryDefinitions:null;
+    if(!resolvedDefinitions.length&&primaryDefinitions.length){
+      resolvedDefinitions=primaryDefinitions;
+    }
+  }
+
+  if(!resolvedDefinitions.length)return response.status(404).json({error:"Definition not found."});
+
+  const ai=await askGroq(word,resolvedDefinitions);
+  const primaryAi=alternateDefinition?await askGroq(alternateOf.word,alternateDefinition):null;
   response.setHeader("cache-control","public, s-maxage=86400, stale-while-revalidate=604800");
-  if(mode==="summary")return response.status(200).json({word,simpleDefinition:ai.simpleDefinition});
+
+  if(mode==="summary")return response.status(200).json({
+    word,
+    simpleDefinition:ai.simpleDefinition,
+    alternateOf:alternateOf?.word??null,
+    alternateOfType:alternateOf?.type??null
+  });
+
   const [synonyms,antonyms]=await Promise.all([findRelations(word,"syn"),findRelations(word,"ant")]);
-  return response.status(200).json({word,fullDefinition:definitions.join("\n\n"),simpleDefinition:ai.simpleDefinition,synonyms,antonyms,examples:ai.examples});
+  return response.status(200).json({
+    word,
+    fullDefinition:resolvedDefinitions.join("\n\n"),
+    simpleDefinition:ai.simpleDefinition,
+    synonyms,
+    antonyms,
+    examples:ai.examples,
+    alternateOf:alternateOf?.word??null,
+    alternateOfType:alternateOf?.type??null,
+    alternateOfDefinition:alternateDefinition?.join("\n\n")??null,
+    alternateOfSimpleDefinition:primaryAi?.simpleDefinition??null
+  }););
 }
