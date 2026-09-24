@@ -606,7 +606,7 @@ function QuizModal({skillMap,onClose,onFinish,onRecord}:{skillMap:Progress["skil
 
       if(next.length===target.current.length){
         onRecord({kind:"word",word:target.current,correct:!hadError.current,duration:Date.now()-started.current});
-        void finish();
+        void finish(next);
       }
     };
 
@@ -632,10 +632,10 @@ function QuizModal({skillMap,onClose,onFinish,onRecord}:{skillMap:Progress["skil
     }
   }
 
-  async function finish(){
+  async function finish(finalAnswer=answer){
     if(phase!=="running")return;
     monitor.current?.stop(video.current||undefined);
-    const local=scoreQuiz(target.current,answer,started.current,times.current,backspaces.current,focus.current);
+    const local=scoreQuiz(target.current,finalAnswer,started.current,times.current,backspaces.current,focus.current);
     const nn=await scoreWebNN([local.stats.accuracy,Math.min(1,local.stats.wpm/70),local.stats.consistency,Math.max(0,1-local.stats.backspaceRate),Math.max(0,1-focus.current/6)]);
     const final={...local,score:nn.score,backend:nn.backend};
     setScore(final);
