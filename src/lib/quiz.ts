@@ -173,8 +173,9 @@ export function scoreQuiz(target:string,answer:string,startedAt:number,timestamp
 
 const STOPWORDS=new Set("a an the and or but if then than of in on at to for from with without is are was were be been being this that these those very more most only just into over as by it its they their you your can could should would will has have had do does did about through during after before".split(" "));
 
-function tokenize(value:string){
-  return value.toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g)||[];
+function tokenize(value:string):string[]{
+  const matches=value.toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g);
+  return matches?Array.from(matches):[];
 }
 
 function readStringSet(key:string){
