@@ -113,8 +113,8 @@ export default async function handler(request,response){
       const data=await wiktionary.json().catch(()=>null);
       const definition=extractWiktionaryDefinition(data);
       if(definition){
-        response.status(200).json(dictionaryResponse(word,definition));
         response.setHeader("cache-control","public, s-maxage=86400, stale-while-revalidate=604800");
+        response.status(200).json(dictionaryResponse(word,definition));
         return;
       }
     }
@@ -133,8 +133,8 @@ export default async function handler(request,response){
       const data=await fallback.json().catch(()=>null);
       const definition=extractDatamuseDefinition(data,word);
       if(definition){
-        response.status(200).json(dictionaryResponse(word,definition));
         response.setHeader("cache-control","public, s-maxage=86400, stale-while-revalidate=604800");
+        response.status(200).json(dictionaryResponse(word,definition));
         return;
       }
     }
