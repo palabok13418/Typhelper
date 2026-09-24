@@ -1,6 +1,6 @@
 import{SignInButton,SignUpButton,UserButton,useUser}from"@clerk/react";
 import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Laptop,Lightbulb,LockKeyhole,Palette,Settings2,UserPlus,X}from"lucide-react";
-import{useEffect,useRef,useState,type ReactNode}from"react";
+import{useCallback,useEffect,useRef,useState,type ReactNode}from"react";
 import{load,save}from"./lib/storage";
 import{adaptive,learn,randomWord}from"./lib/typing";
 import{GazeMonitor}from"./lib/gaze";
@@ -16,6 +16,8 @@ import{probeDeviceRuntime,runtimeSummary,type DeviceRuntimeProfile}from"./lib/de
 import{connectPhysicalKeyboard,hasWebHID,observeKeyboardKey,readKeyboardProfile,type KeyboardProfile}from"./lib/keyboard-profile";
 import{readPerformanceMode,savePerformanceMode,performanceModeLabel,type PerformanceMode}from"./lib/performance";
 import{fetchPracticeBatch,fetchSimpleDefinition,fetchWordDetails,type PracticeWord,type WordDetails}from"./lib/word-api";
+import Counter from "./components/Counter";
+import CountUp from "./components/CountUp";
 import type{GazeState,Progress,QuizResult}from"./types";
 
 type KeyboardStyle="windows"|"mac";
@@ -33,6 +35,8 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const[detailsLoading,setDetailsLoading]=useState(false);
   const[detailsError,setDetailsError]=useState(false);
   const[account,setAccount]=useState(false);
+  const[liveWpm,setLiveWpm]=useState(0);
+  const[animateWordsOnEntry,setAnimateWordsOnEntry]=useState(()=>p.totalPracticeWords>0);
   const[quiz,setQuiz]=useState(false);
   const[help,setHelp]=useState(false);
   const[settings,setSettings]=useState(false);
@@ -50,6 +54,11 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const lastActivity=useRef(Date.now());
   const lastKey=useRef(performance.now());
   const wordStarted=useRef(performance.now());
+  const entryWordCount=useRef(p.totalPracticeWords);
+  const liveTypedChars=useRef(0);
+  const liveActiveMs=useRef(0);
+  const liveLastKeyAt=useRef<number|null>(null);
+  const liveWpmLastTick=useRef<number|null>(null);
   const hadError=useRef(false);
   const refineAt=useRef(0);
   const wordRef=useRef<HTMLDivElement>(null);
@@ -72,6 +81,24 @@ export default function App({clerk=false}:{clerk?:boolean}){
     return()=>{cancelled=true};
   },[performanceMode]);
   useEffect(()=>save(p),[p]);
+
+  const finishEntryCountUp=useCallback(()=>setAnimateWordsOnEntry(false),[]);
+
+  useEffect(()=>{
+    const timer=window.setInterval(()=>{
+      const now=Date.now();
+      const lastKeyTime=liveLastKeyAt.current;
+      const previousTick=liveWpmLastTick.current;
+      if(previousTick!==null&&lastKeyTime!==null&&now-lastKeyTime<3000){
+        liveActiveMs.current+=now-previousTick;
+      }
+      liveWpmLastTick.current=now;
+      const minutes=liveActiveMs.current/60000;
+      const value=liveTypedChars.current>0&&minutes>0?Math.min(240,Math.round((liveTypedChars.current/5)/minutes)):0;
+      setLiveWpm(value);
+    },250);
+    return()=>window.clearInterval(timer);
+  },[]);
 
   useEffect(()=>{
     learner.current=new PersonalModel({skills:p.skillMap,transitions:{},fatigue:0});
@@ -203,6 +230,10 @@ export default function App({clerk=false}:{clerk?:boolean}){
       if(event.key.length!==1&&event.key!==" ")return;
       const expected=word[index]??"";
       const actual=event.key;
+      const wpmNow=Date.now();
+      liveTypedChars.current+=1;
+      if(liveLastKeyAt.current===null)liveWpmLastTick.current=wpmNow;
+      liveLastKeyAt.current=wpmNow;
       setPhysicalKeyboard(observeKeyboardKey(actual));
       const normalizedExpected=normalizeKey(expected);
       const normalizedActual=normalizeKey(actual);
@@ -342,7 +373,12 @@ export default function App({clerk=false}:{clerk?:boolean}){
       </section>
 
       <aside className="practice-side">
-        <div className="mini-card"><div className="mini-label">Words</div><div className="big-stat">{p.totalPracticeWords}</div><div className="muted">completed this device</div></div>
+        <div className="mini-card"><div className="mini-label">Words</div><div className="big-stat stat-counter">
+          {animateWordsOnEntry
+            ?<CountUp to={entryWordCount.current} from={0} duration={1.4} separator="," className="count-up-text" onEnd={finishEntryCountUp}/>
+            :<Counter value={p.totalPracticeWords} places={counterPlaces(p.totalPracticeWords)} fontSize={43} padding={0} gap={1} horizontalPadding={0} textColor="#202124" fontWeight={760} gradientHeight={0}/>}
+        </div><div className="muted">completed this device</div></div>
+        <div className="mini-card"><div className="mini-label">Live WPM</div><div className="big-stat stat-counter"><Counter value={liveWpm} places={counterPlaces(liveWpm)} fontSize={43} padding={0} gap={1} horizontalPadding={0} textColor="#202124" fontWeight={760} gradientHeight={0}/></div><div className="muted">current typing speed</div></div>
         <div className="mini-card"><div className="mini-label">Check-in</div><div className="check-row"><span>{remaining?formatTime(remaining):"Ready"}</span><Clock3 size={15}/></div><button className="solid-action" onClick={()=>setQuiz(true)}><span>Take check-in</span><ChevronRight size={16}/></button></div>
         <div className="mini-card privacy-card"><LockKeyhole size={16}/><div><strong>Private by default</strong><p>Your typing stays on this device unless you choose to sync an account.</p></div></div>
       </aside>
@@ -741,6 +777,11 @@ function QuizModal({skillMap,onClose,onFinish,onRecord}:{skillMap:Progress["skil
     </section>
   </main>;
 }
+function counterPlaces(value:number){
+  const digits=Math.max(1,Math.floor(Math.abs(value)).toString().length);
+  return Array.from({length:digits},(_,index)=>10**(digits-index-1));
+}
+
 function formatTime(seconds:number){const m=Math.floor(seconds/60),s=seconds%60;return m+":"+String(s).padStart(2,"0")}
 
 

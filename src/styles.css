@@ -466,3 +466,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
   .practice-side{grid-template-columns:1fr}.result-metrics{grid-template-columns:1fr 1fr}
   .modal-actions{flex-wrap:wrap}.account-modal,.quiz-modal,.details-modal{padding:18px}.settings-modal{width:calc(100vw - 20px);max-height:calc(100vh - 20px)}.settings-header{padding:15px}.settings-scroll{padding:12px}.settings-grid{grid-template-columns:1fr}.performance-options{grid-template-columns:1fr}.settings-footer{padding:11px 12px}.setting-section{align-items:flex-start;flex-direction:column}.choice-row{width:100%}.choice{flex:1}.details-grid{grid-template-columns:1fr}
 }
+
+.stat-counter{display:flex;align-items:center;min-height:43px;margin-top:7px}
+.stat-counter .counter-container{display:block}
+.count-up-text{display:inline-block;font-variant-numeric:tabular-nums;font-size:43px;font-weight:760;letter-spacing:-.06em;line-height:1;color:#202124}
