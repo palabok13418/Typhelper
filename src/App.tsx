@@ -647,10 +647,22 @@ function QuizModal({skillMap,onClose,onFinish,onRecord}:{skillMap:Progress["skil
   }
 
   async function finish(finalAnswer=answer){
-    if(phase!=="running")return;
+    if(phase!=="running"||finishing.current)return;
+    finishing.current=true;
     monitor.current?.stop(video.current||undefined);
     const local=scoreQuiz(target.current,finalAnswer,started.current,times.current,backspaces.current,focus.current);
-    const nn=await scoreWebNN([local.stats.accuracy,Math.min(1,local.stats.wpm/70),local.stats.consistency,Math.max(0,1-local.stats.backspaceRate),Math.max(0,1-focus.current/6)]);
+    const f=local.stats;
+    const features=[
+      Math.max(0,Math.min(1,f.accuracy)),
+      Math.min(1,f.wpm/75),
+      f.consistency,
+      Math.max(0,1-f.backspaceRate*1.35),
+      Math.max(0,1-focus.current/6),
+      Math.max(0,f.consistency*(1-f.latencyJitter*.35)),
+      Math.max(0,1-Math.max(0,f.avgLatencyMs-85)/280),
+      Math.max(0,1-f.errorRate*1.2)
+    ];
+    const nn=await scoreWebNN(features);
     const final={...local,score:nn.score,backend:nn.backend};
     setScore(final);
     setPhase("result");
