@@ -1,5 +1,5 @@
 import{SignInButton,SignUpButton,UserButton,useUser}from"@clerk/react";
-import{Activity,Camera,Check,ChevronRight,CircleHelp,Clock3,Keyboard,Lightbulb,LockKeyhole,Settings2,UserPlus,X}from"lucide-react";
+import{Activity,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Lightbulb,LockKeyhole,Settings2,UserPlus,X}from"lucide-react";
 import{useEffect,useRef,useState,type ReactNode}from"react";
 import{load,save}from"./lib/storage";
 import{adaptive,learn,randomWord}from"./lib/typing";
@@ -13,6 +13,7 @@ import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePan
 import{quietlyRefineProfile}from"./lib/local-model";
 import{probeDeviceRuntime,runtimeSummary,type DeviceRuntimeProfile}from"./lib/device-runtime";
 import{connectPhysicalKeyboard,hasWebHID,observeKeyboardKey,readKeyboardProfile,type KeyboardProfile}from"./lib/keyboard-profile";
+import{readPerformanceMode,savePerformanceMode,performanceModeLabel,type PerformanceMode}from"./lib/performance";
 import{fetchPracticeBatch,type PracticeWord}from"./lib/word-api";
 import type{GazeState,Progress,QuizResult}from"./types";
 
@@ -32,6 +33,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const[settings,setSettings]=useState(false);
   const[keyboardStyle,setKeyboardStyle]=useState<KeyboardStyle>(()=>localStorage.getItem("typing-pro-keyboard-style")==="mac"?"mac":"windows");
   const[visionEnabled,setVisionEnabled]=useState(()=>localStorage.getItem("typing-pro-vision-enabled")==="true");
+  const[performanceMode,setPerformanceMode]=useState<PerformanceMode>(()=>readPerformanceMode());
   const[runtimeProfile,setRuntimeProfile]=useState<DeviceRuntimeProfile|null>(null);
   const[physicalKeyboard,setPhysicalKeyboard]=useState<KeyboardProfile|null>(()=>readKeyboardProfile());
   const[keyboardError,setKeyboardError]=useState<string|null>(null);
@@ -56,10 +58,12 @@ export default function App({clerk=false}:{clerk?:boolean}){
   useEffect(()=>{skills.current=p.skillMap},[p.skillMap]);
 
   useEffect(()=>{
+    savePerformanceMode(performanceMode);
     let cancelled=false;
-    void probeDeviceRuntime().then(profile=>{if(!cancelled)setRuntimeProfile(profile)}).catch(()=>{});
+    setRuntimeProfile(null);
+    void probeDeviceRuntime(performanceMode).then(profile=>{if(!cancelled)setRuntimeProfile(profile)}).catch(()=>{});
     return()=>{cancelled=true};
-  },[]);
+  },[performanceMode]);
   useEffect(()=>save(p),[p]);
 
   useEffect(()=>{
@@ -225,13 +229,13 @@ export default function App({clerk=false}:{clerk?:boolean}){
     if(p.totalPracticeWords===0||p.totalPracticeWords%20!==0)return;
     if(Date.now()-refineAt.current<120000)return;
     refineAt.current=Date.now();
-    const run=()=>void quietlyRefineProfile("activeSeconds="+p.activeSeconds+";totalWords="+p.totalPracticeWords+";skills="+JSON.stringify(skills.current));
+    const run=()=>void quietlyRefineProfile("activeSeconds="+p.activeSeconds+";totalWords="+p.totalPracticeWords+";skills="+JSON.stringify(skills.current),performanceMode);
     if("requestIdleCallback"in window){
       (window as any).requestIdleCallback(run,{timeout:8000});
     }else{
       globalThis.setTimeout(run,3000);
     }
-  },[p.totalPracticeWords]);
+  },[p.totalPracticeWords,performanceMode]);
 
   useEffect(()=>{if(p.activeSeconds>=1800)setQuiz(true)},[p.activeSeconds]);
 
@@ -298,6 +302,16 @@ export default function App({clerk=false}:{clerk?:boolean}){
       <div className="setting-section"><div><strong>Keyboard style</strong><small>Windows is the default. Switch to Mac styling whenever you prefer.</small></div><div className="choice-row" role="group" aria-label="Keyboard style"><button className={keyboardStyle==="windows"?"choice active":"choice"} onClick={()=>setKeyboardStyle("windows")}>Windows</button><button className={keyboardStyle==="mac"?"choice active":"choice"} onClick={()=>setKeyboardStyle("mac")}>Mac</button></div></div>
       <div className="setting-section"><div><strong>Physical keyboard</strong><small>{physicalKeyboard?.exactDevice?<>Detected <strong>{physicalKeyboard.name}</strong>. Typing-Pro will use its detected layout when it can.</>:physicalKeyboard?<>Observed your key layout locally. Connect the keyboard for a hardware identity when supported.</>:<>Typing-Pro can learn your key layout from normal typing without camera access.</>}</small></div><button className="choice active" onClick={async()=>{setKeyboardError(null);try{const profile=await connectPhysicalKeyboard();setPhysicalKeyboard(profile);setKeyboardStyle(profile.layout==="mac"?"mac":"windows")}catch(error){setKeyboardError(error instanceof Error?error.message:"Keyboard connection was cancelled.")}}}>{hasWebHID()?"Connect keyboard":"Detect from typing"}</button></div>
       {keyboardError&&<div className="permission-error">{keyboardError}</div>}
+      <div className="setting-section performance-setting">
+        <div><strong>Performance</strong><small>Choose how the background training model splits processing between your device and the cloud.</small></div>
+        <div className="choice-row performance-choice-row" role="group" aria-label="Performance mode">
+          <button className={performanceMode==="low"?"choice active":"choice"} onClick={()=>setPerformanceMode("low")}><span>Low</span><small>{performanceModeLabel("low")}</small></button>
+          <button className={performanceMode==="balanced"?"choice active":"choice"} onClick={()=>setPerformanceMode("balanced")}><span>Balanced</span><small>{performanceModeLabel("balanced")}</small></button>
+          <button className={performanceMode==="max"?"choice active":"choice"} onClick={()=>setPerformanceMode("max")}><span>Max</span><small>{performanceModeLabel("max")}</small></button>
+        </div>
+      </div>
+      <div className="performance-caption"><Gauge size={14}/><span>It does use the cloud because your device may not handle the on device model that this site has to load.</span></div>
+      <div className="performance-caption performance-ratio"><span>Low: 100% cloud · Balanced: 70% cloud / 30% device · Max: 100% device when the device passes its safety check.</span></div>
       <div className="setting-section"><div><strong>AI runtime</strong><small>{runtimeProfile?runtimeSummary(runtimeProfile):"Checking this device before loading the local model…"}</small></div><div className="runtime-badge">{runtimeProfile?.preferredBackend??"checking"}</div></div>
       <label className="toggle-row"><span><strong>Use paired vision signals</strong><small>Accept aggregate gaze or hand-pose signals from the Keyboard Vision extension you paired yourself.</small></span><input type="checkbox" checked={visionEnabled} onChange={event=>setVisionEnabled(event.target.checked)}/></label>
       <div className="setting-note"><LockKeyhole size={14}/><span>Camera access for Typing-Pro itself is limited to check-ins.</span></div>

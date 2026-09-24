@@ -113,6 +113,19 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .toggle-row input{width:17px;height:17px;margin-top:2px;accent-color:var(--accent)}
 .setting-note{display:flex;align-items:center;gap:7px;color:#8b8e94;font-size:10px;margin-top:12px}
 .runtime-badge{padding:7px 9px;border:1px solid var(--line);border-radius:9px;background:#fff;text-transform:uppercase;letter-spacing:.06em;font-size:9px;font-weight:750;color:#686c73}
+.performance-choice-row{gap:6px}
+.performance-choice-row .choice{
+  min-width:92px;height:52px;padding:7px 10px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px
+}
+.performance-choice-row .choice span{font-size:11px;font-weight:750}
+.performance-choice-row .choice small{margin:0;color:#96999f;font-size:9px;font-weight:600;line-height:1.2}
+.performance-choice-row .choice.active small{color:#d4d5d7}
+.performance-caption{
+  display:flex;align-items:flex-start;gap:7px;margin:9px 4px 0;color:#8b8e94;font-size:10px;line-height:1.5
+}
+.performance-caption svg{flex:0 0 auto;margin-top:1px}
+.performance-ratio{margin-top:5px;margin-bottom:2px;padding-left:21px}
+
 .camera-preview{
   position:relative;aspect-ratio:16/8;border-radius:14px;overflow:hidden;background:#111;
   border:1px solid var(--line);margin-top:18px
