@@ -1,5 +1,6 @@
 const RANDOM_WORD_API="https://random-word-api.herokuapp.com/word?number=8";
 const DICTIONARY_API="https://api.dictionaryapi.dev/api/v2/entries/en";
+const DEFINITION_CACHE="typing-pro-definition-cache";
 
 interface DictionaryEntry{
   meanings?:Array<{definitions?:Array<{definition?:string}>}>;
@@ -29,6 +30,26 @@ function compactDefinition(value:string){
   return words.slice(0,6).join(" ")+"…";
 }
 
+function readDefinitionCache(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(DEFINITION_CACHE)||"{}") as Record<string,string>;
+    return parsed&&typeof parsed==="object"?parsed:{};
+  }catch{
+    return {};
+  }
+}
+
+function writeDefinitionCache(word:string,definition:string){
+  try{
+    const cache=readDefinitionCache();
+    cache[word]=definition;
+    const recent=Object.entries(cache).slice(-500);
+    localStorage.setItem(DEFINITION_CACHE,JSON.stringify(Object.fromEntries(recent)));
+  }catch{
+    // Definition caching is optional.
+  }
+}
+
 async function fetchRandomCandidates(signal?:AbortSignal){
   const response=await fetch(RANDOM_WORD_API,{signal});
   if(!response.ok)throw new Error("Random Word API request failed");
@@ -37,18 +58,36 @@ async function fetchRandomCandidates(signal?:AbortSignal){
   return data.map(value=>typeof value==="string"?cleanWord(value):null).filter((value):value is string=>Boolean(value));
 }
 
-async function fetchDefinition(word:string,signal?:AbortSignal){
-  try{
-    const response=await fetch(DICTIONARY_API+"/"+encodeURIComponent(word),{signal});
-    if(!response.ok)return null;
-    const data=await response.json() as DictionaryEntry[];
-    const definition=data?.[0]?.meanings?.flatMap(meaning=>meaning.definitions??[])
-      .map(item=>item.definition?.trim())
-      .find(Boolean);
-    return definition?compactDefinition(definition):null;
-  }catch{
-    return null;
+export async function fetchWordDefinition(word:string,signal?:AbortSignal){
+  const clean=cleanWord(word);
+  if(!clean)return null;
+  const cached=readDefinitionCache()[clean];
+  if(cached)return cached;
+
+  const endpoints=[
+    "/api/definition?word="+encodeURIComponent(clean),
+    DICTIONARY_API+"/"+encodeURIComponent(clean)
+  ];
+
+  for(const endpoint of endpoints){
+    try{
+      const response=await fetch(endpoint,{signal});
+      if(!response.ok)continue;
+      const data=await response.json() as DictionaryEntry[];
+      const definition=data?.[0]?.meanings?.flatMap(meaning=>meaning.definitions??[])
+        .map(item=>item.definition?.trim())
+        .find(Boolean);
+      if(definition){
+        const compact=compactDefinition(definition);
+        writeDefinitionCache(clean,compact);
+        return compact;
+      }
+    }catch{
+      // Try the next source.
+    }
   }
+
+  return null;
 }
 
 export async function fetchPracticeWord(previous:string,shownWords:Set<string>,signal?:AbortSignal):Promise<PracticeWord>{
@@ -59,7 +98,8 @@ export async function fetchPracticeWord(previous:string,shownWords:Set<string>,s
     const word=unseen[0]??unique[0]??candidates[0];
     if(word){
       const isNew=!shownWords.has(word);
-      return{word,definition:isNew?await fetchDefinition(word,signal):null,isNew};
+      const definition=isNew?await fetchWordDefinition(word,signal):null;
+      return{word,definition,isNew};
     }
   }catch{
     // The static learner vocabulary remains the offline fallback.
