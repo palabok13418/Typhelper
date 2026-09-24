@@ -273,23 +273,26 @@ export default async function handler(request,response){
 
   if(!resolvedDefinitions.length)return response.status(404).json({error:"Definition not found."});
 
-  const simpleDefinition=await askGroqSimpleDefinition(word,resolvedDefinitions);
-  const primarySimpleDefinition=alternateDefinition?await askGroqSimpleDefinition(alternateOf.word,alternateDefinition):null;
-  response.setHeader("cache-control","public, s-maxage=86400, stale-while-revalidate=604800");
+  if(mode==="summary"){
+    const simpleDefinition=await askGroqSimpleDefinition(word,resolvedDefinitions);
+    response.setHeader("cache-control","public, s-maxage=86400, stale-while-revalidate=604800");
+    return response.status(200).json({
+      word,
+      originalDefinition:resolvedDefinitions.join("\n\n"),
+      simpleDefinition,
+      alternateOf:alternateOf?.word??null,
+      alternateOfType:alternateOf?.type??null
+    });
+  }
 
-  if(mode==="summary")return response.status(200).json({
-    word,
-    originalDefinition:resolvedDefinitions.join("\n\n"),
-    simpleDefinition,
-    alternateOf:alternateOf?.word??null,
-    alternateOfType:alternateOf?.type??null
-  });
-
-  const [synonyms,antonyms,examples]=await Promise.all([
+  const [simpleDefinition,examples,primarySimpleDefinition,synonyms,antonyms]=await Promise.all([
+    askGroqSimpleDefinition(word,resolvedDefinitions),
+    askGroqExamples(word,resolvedDefinitions),
+    alternateDefinition?askGroqSimpleDefinition(alternateOf.word,alternateDefinition):Promise.resolve(null),
     findRelations(word,"syn"),
-    findRelations(word,"ant"),
-    askGroqExamples(word,resolvedDefinitions)
+    findRelations(word,"ant")
   ]);
+  response.setHeader("cache-control","public, s-maxage=86400, stale-while-revalidate=604800");
   return response.status(200).json({
     word,
     originalDefinition:resolvedDefinitions.join("\n\n"),
