@@ -358,7 +358,7 @@ function formatTime(seconds:number){const m=Math.floor(seconds/60),s=seconds%60;
 
 function readShownWords(){
   try{
-    const raw=localStorage.getItem("typing-pro-shown-words");
+    const raw=localStorage.getItem("typing-pro-shown-words-v2");
     const parsed=JSON.parse(raw||"[]");
     return new Set<string>(Array.isArray(parsed)?parsed.filter((word):word is string=>typeof word==="string"):[]);
   }catch{
@@ -369,7 +369,7 @@ function readShownWords(){
 function markShownWord(word:string,set:Set<string>){
   set.add(word);
   try{
-    localStorage.setItem("typing-pro-shown-words",JSON.stringify([...set].slice(-1000)));
+    localStorage.setItem("typing-pro-shown-words-v2",JSON.stringify([...set].slice(-1000)));
   }catch{
     // Storage is optional; practice still works without it.
   }
