@@ -1,6 +1,6 @@
 import{SignInButton,SignUpButton,UserButton,useUser}from"@clerk/react";
 import{Activity,Camera,Check,ChevronRight,CircleHelp,Clock3,Keyboard,Lightbulb,LockKeyhole,Settings2,UserPlus,X}from"lucide-react";
-import{useEffect,useRef,useState}from"react";
+import{useEffect,useRef,useState,type ReactNode}from"react";
 import{load,save}from"./lib/storage";
 import{adaptive,learn}from"./lib/typing";
 import{GazeMonitor}from"./lib/gaze";
@@ -40,14 +40,9 @@ export default function App({clerk=false}:{clerk?:boolean}){
     const first=adaptive(p.skillMap,1)[0]??"type";
     setWord(first);
     learner.current=new PersonalModel({skills:p.skillMap,transitions:{},fatigue:0});
-    learner.current.onUpdate(snapshot=>{
-      skills.current=snapshot.skills;
-      const now=Date.now();
-      if(now-lastKey.current>700){
-        setP(current=>({...current,skillMap:snapshot.skills}));
-      }
-    });
-    return()=>learner.current?.dispose();
+    learner.current.onUpdate(snapshot=>{skills.current=snapshot.skills});
+    const sync=window.setInterval(()=>setP(current=>({...current,skillMap:skills.current})),2500);
+    return()=>{window.clearInterval(sync);learner.current?.dispose()};
   },[]);
 
   useEffect(()=>{
@@ -211,7 +206,7 @@ function AccountWarning({clerk,close}:{clerk:boolean;close:()=>void}){
   return <div className="overlay"><div className="account-modal"><div className="modal-icon"><LockKeyhole size={21}/></div><div className="modal-step">Privacy check {stage+1}/4</div><h2>{messages[stage]}</h2><p>An account is optional. It only carries your progress to another device.</p><div className="modal-actions"><button className="outline-action" onClick={close}>No thanks</button>{stage<3?<button className="solid-action" onClick={()=>setStage(stage+1)}>Continue</button>:<div onPointerEnter={dodge} onPointerMove={dodge}><span className="dodge" style={{transform:"translate("+pos.x+"px,"+pos.y+"px)"}}>{clerk?<SignUpButton><button className="solid-action">Yes, save progress</button></SignUpButton>:<button className="solid-action" onClick={close}>Yes</button>}</span></div>}</div><div className="modal-note">You can still back out.</div></div></div>
 }
 
-function SimpleModal({title,icon,close,children}:{title:string;icon:React.ReactNode;close:()=>void;children:React.ReactNode}){
+function SimpleModal({title,icon,close,children}:{title:string;icon:ReactNode;close:()=>void;children:ReactNode}){
   return <div className="overlay"><div className="account-modal"><div className="modal-top"><div><div className="modal-icon">{icon}</div><h2>{title}</h2></div><button className="icon-action" onClick={close} aria-label="Close"><X size={17}/></button></div>{children}<div className="modal-actions"><button className="solid-action" onClick={close}>Done</button></div></div></div>
 }
 
