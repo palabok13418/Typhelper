@@ -68,13 +68,12 @@ export async function fetchWordDefinition(word:string,signal?:AbortSignal){
   const endpoint="/api/definition?word="+encodeURIComponent(clean);
 
   try{
-    try{
-      const response=await fetch(endpoint,{signal});
-      if(!response.ok)continue;
-      const data=await response.json() as DictionaryEntry[];
-      const definition=data?.[0]?.meanings?.flatMap(meaning=>meaning.definitions??[])
-        .map(item=>item.definition?.trim())
-        .find(Boolean);
+    const response=await fetch(endpoint,{signal});
+    if(!response.ok)return null;
+    const data=await response.json() as DictionaryEntry[];
+    const definition=data?.[0]?.meanings?.flatMap(meaning=>meaning.definitions??[])
+      .map(item=>item.definition?.trim())
+      .find(Boolean);
     if(definition){
       const compact=compactDefinition(definition);
       writeDefinitionCache(clean,compact);
