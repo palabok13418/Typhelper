@@ -658,6 +658,34 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
 
   useEffect(()=>{
     if(phase!=="running")return;
+    let cancelled=false;
+    const startCamera=async()=>{
+      try{
+        const stream=cameraStream.current??await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640},height:{ideal:480}},audio:false});
+        if(cancelled){stream.getTracks().forEach(track=>track.stop());return;}
+        cameraStream.current=stream;
+        const videoEl=video.current;
+        if(!videoEl){window.requestAnimationFrame(()=>void startCamera());return;}
+        const m=new GazeMonitor();
+        monitor.current=m;
+        await m.start(videoEl,handleGaze,stream);
+        if(cancelled)m.stop(videoEl);
+      }catch(error){
+        if(cancelled)return;
+        setCameraStatus("busy");
+        setError(error instanceof Error?error.message:"Camera could not be started.");
+      }
+    };
+    void startCamera();
+    return()=>{
+      cancelled=true;
+      monitor.current?.stop(video.current||undefined);
+      monitor.current=null;
+    };
+  },[phase]);
+
+  useEffect(()=>{
+    if(phase!=="running")return;
     const handleKeyDown=(event:KeyboardEvent)=>{
       if(paused||finishing.current)return;
       if(event.ctrlKey||event.metaKey||event.altKey)return;
@@ -706,9 +734,6 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
     try{
       const stream=cameraStream.current??await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640},height:{ideal:480}},audio:false});
       cameraStream.current=stream;
-      const m=new GazeMonitor();
-      monitor.current=m;
-      await m.start(video.current!,handleGaze,stream);
       started.current=Date.now();
       lastKey.current=performance.now();
       finishing.current=false;
