@@ -1,5 +1,5 @@
 import{SignInButton,SignUpButton,UserButton,useUser}from"@clerk/react";
-import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Laptop,Lightbulb,LockKeyhole,Settings2,UserPlus,X}from"lucide-react";
+import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Laptop,Lightbulb,LockKeyhole,Palette,Settings2,UserPlus,X}from"lucide-react";
 import{useEffect,useRef,useState,type ReactNode}from"react";
 import{load,save}from"./lib/storage";
 import{adaptive,learn,randomWord}from"./lib/typing";
@@ -9,6 +9,7 @@ import{createQuiz,scoreQuiz,type QuizScore}from"./lib/quiz";
 import{PersonalModel}from"./lib/personal-model";
 import{VisionBridge}from"./lib/vision-bridge";
 import{FUNCTION_ROW,MAC_BOTTOM_ROW,MAC_ROWS,WINDOWS_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
+import{fingerClass}from"./lib/finger-map";
 import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateSession,animateWord,animateWordExit}from"./lib/animations";
 import{quietlyRefineProfile}from"./lib/local-model";
 import{probeDeviceRuntime,runtimeSummary,type DeviceRuntimeProfile}from"./lib/device-runtime";
@@ -36,6 +37,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const[help,setHelp]=useState(false);
   const[settings,setSettings]=useState(false);
   const[keyboardStyle,setKeyboardStyle]=useState<KeyboardStyle>(()=>localStorage.getItem("typing-pro-keyboard-style")==="mac"?"mac":"windows");
+  const[fingerColors,setFingerColors]=useState(()=>localStorage.getItem("typing-pro-finger-colors")!=="false");
   const[visionEnabled,setVisionEnabled]=useState(()=>localStorage.getItem("typing-pro-vision-enabled")==="true");
   const[performanceMode,setPerformanceMode]=useState<PerformanceMode>(()=>readPerformanceMode());
   const[runtimeProfile,setRuntimeProfile]=useState<DeviceRuntimeProfile|null>(null);
@@ -162,6 +164,9 @@ export default function App({clerk=false}:{clerk?:boolean}){
   useEffect(()=>{
     localStorage.setItem("typing-pro-keyboard-style",keyboardStyle);
   },[keyboardStyle]);
+  useEffect(()=>{
+    localStorage.setItem("typing-pro-finger-colors",String(fingerColors));
+  },[fingerColors]);
 
   useEffect(()=>{
     const bridge=vision.current;
@@ -295,7 +300,10 @@ export default function App({clerk=false}:{clerk?:boolean}){
   }
 
   function renderKeys(row:KeyDef[],rowName:string){
-    return <div className="key-row" key={rowName}>{row.map(key=><div key={key.k} data-key={key.k} className={"key "+(key.kind==="modifier"?"modifier-key ":"")+(key.k===target?"target ":"")} style={{flex:key.w??1}}>{key.label??(key.k.length===1?key.k.toUpperCase():key.k.toUpperCase())}</div>)}</div>
+    return <div className="key-row" key={rowName}>{row.map(key=>{
+      const finger=fingerColors?fingerClass(key.k):"";
+      return <div key={key.k} data-key={key.k} className={"key "+(key.kind==="modifier"?"modifier-key ":"")+finger+(key.k===target?" target":"")} style={{flex:key.w??1}}>{key.label??key.k.toUpperCase()}</div>
+    })}</div>
   }
 
   return <div className="app">
@@ -375,7 +383,7 @@ export function ComputerRequiredScreen(){
   </main>
 }
 
-function SettingsModal({close,keyboardStyle,setKeyboardStyle,physicalKeyboard,setPhysicalKeyboard,hasWebHID,connectPhysicalKeyboard,keyboardError,setKeyboardError,performanceMode,setPerformanceMode,runtimeProfile,visionEnabled,setVisionEnabled}:{
+function SettingsModal({close,keyboardStyle,setKeyboardStyle,physicalKeyboard,setPhysicalKeyboard,hasWebHID,connectPhysicalKeyboard,keyboardError,setKeyboardError,performanceMode,setPerformanceMode,visionEnabled,setVisionEnabled,fingerColors,setFingerColors}:{
   close:()=>void;
   keyboardStyle:KeyboardStyle;
   setKeyboardStyle:(value:KeyboardStyle)=>void;
@@ -387,45 +395,43 @@ function SettingsModal({close,keyboardStyle,setKeyboardStyle,physicalKeyboard,se
   setKeyboardError:(value:string|null)=>void;
   performanceMode:PerformanceMode;
   setPerformanceMode:(value:PerformanceMode)=>void;
-  runtimeProfile:DeviceRuntimeProfile|null;
   visionEnabled:boolean;
   setVisionEnabled:(value:boolean)=>void;
+  fingerColors:boolean;
+  setFingerColors:(value:boolean)=>void;
 }){
   const modal=useRef<HTMLDivElement>(null);
   useEffect(()=>animateModal(modal.current),[]);
   return <div className="overlay">
-    <div className="settings-modal" ref={modal} role="dialog" aria-modal="true" aria-labelledby="settings-title">
-      <header className="settings-header">
-        <div className="settings-header-main">
-          <div className="modal-icon"><Settings2 size={20}/></div>
-          <div><div className="modal-step">Preferences</div><h2 id="settings-title">Settings</h2></div>
+    <div className="simple-settings-modal" ref={modal} role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <header className="simple-settings-header">
+        <div>
+          <div className="modal-step">Preferences</div>
+          <h2 id="settings-title">Settings</h2>
         </div>
         <button className="icon-action" onClick={close} aria-label="Close settings"><X size={17}/></button>
       </header>
-      <div className="settings-scroll">
-        <section className="settings-card settings-performance">
-          <div className="settings-card-head"><div className="settings-card-icon"><Gauge size={17}/></div><div><strong>Performance</strong><p>Control how the background training model uses your device and the cloud.</p></div></div>
-          <div className="performance-options" role="group" aria-label="Performance mode">
-            <button className={performanceMode==="low"?"performance-option active":"performance-option"} onClick={()=>setPerformanceMode("low")}><strong>Low</strong><span>100% cloud</span></button>
-            <button className={performanceMode==="balanced"?"performance-option active":"performance-option"} onClick={()=>setPerformanceMode("balanced")}><strong>Balanced</strong><span>70% cloud · 30% device</span></button>
-            <button className={performanceMode==="max"?"performance-option active":"performance-option"} onClick={()=>setPerformanceMode("max")}><strong>Max</strong><span>100% device</span></button>
-          </div>
-          <div className="settings-caption"><Gauge size={14}/><span>It does use the cloud because your device may not handle the on device model that this site has to load.</span></div>
-          <div className="settings-caption secondary"><span>Max automatically falls back to cloud when the device fails the safety check.</span></div>
-        </section>
 
-        <div className="settings-grid">
-          <section className="settings-card">
-            <div className="settings-card-head"><div className="settings-card-icon"><Keyboard size={17}/></div><div><strong>Keyboard style</strong><p>Choose the keyboard visualization shown during practice.</p></div></div>
-            <div className="choice-row settings-choice-row" role="group" aria-label="Keyboard style">
-              <button className={keyboardStyle==="windows"?"choice active":"choice"} onClick={()=>setKeyboardStyle("windows")}>Windows</button>
-              <button className={keyboardStyle==="mac"?"choice active":"choice"} onClick={()=>setKeyboardStyle("mac")}>Mac</button>
+      <div className="simple-settings-body">
+        <section className="simple-settings-section">
+          <div className="simple-settings-section-head"><Keyboard size={17}/><div><strong>Keyboard</strong><span>Choose how the keyboard looks while you practice.</span></div></div>
+          <div className="settings-row">
+            <div><strong>Keyboard style</strong><span>{keyboardStyle==="windows"?"Windows layout":"Mac layout"}</span></div>
+            <div className="settings-choice-pills" role="group" aria-label="Keyboard style">
+              <button className={keyboardStyle==="windows"?"settings-pill active":"settings-pill"} onClick={()=>setKeyboardStyle("windows")}>Windows</button>
+              <button className={keyboardStyle==="mac"?"settings-pill active":"settings-pill"} onClick={()=>setKeyboardStyle("mac")}>Mac</button>
             </div>
-          </section>
-
-          <section className="settings-card">
-            <div className="settings-card-head"><div className="settings-card-icon"><Activity size={17}/></div><div><strong>Physical keyboard</strong><p>{physicalKeyboard?.exactDevice?<>Detected <strong>{physicalKeyboard.name}</strong>.</>:physicalKeyboard?"Your key layout is being learned locally.":"Learn your layout from typing or connect the keyboard when supported."}</p></div></div>
-            <button className="settings-button" onClick={async()=>{
+          </div>
+          <label className="simple-settings-toggle">
+            <span><strong>Finger color coding</strong><small>Color each typing key by the finger that should press it.</small></span>
+            <input type="checkbox" checked={fingerColors} onChange={event=>setFingerColors(event.target.checked)}/>
+          </label>
+          <div className="finger-legend" aria-label="Finger color legend">
+            <span className="finger-legend-item"><i className="finger-swatch finger-left-pinky"></i>Left pinky</span><span className="finger-legend-item"><i className="finger-swatch finger-left-ring"></i>Left ring</span><span className="finger-legend-item"><i className="finger-swatch finger-left-middle"></i>Left middle</span><span className="finger-legend-item"><i className="finger-swatch finger-left-index"></i>Left index</span><span className="finger-legend-item"><i className="finger-swatch finger-right-index"></i>Right index</span><span className="finger-legend-item"><i className="finger-swatch finger-right-middle"></i>Right middle</span><span className="finger-legend-item"><i className="finger-swatch finger-right-ring"></i>Right ring</span><span className="finger-legend-item"><i className="finger-swatch finger-right-pinky"></i>Right pinky</span><span className="finger-legend-item"><i className="finger-swatch finger-thumb"></i>Thumb</span>
+          </div>
+          <div className="settings-row compact-row">
+            <div><strong>Physical keyboard</strong><span>{physicalKeyboard?.exactDevice?physicalKeyboard.name:physicalKeyboard?"Layout learned from typing":"Not connected"}</span></div>
+            <button className="settings-small-button" onClick={async()=>{
               setKeyboardError(null);
               try{
                 const profile=await connectPhysicalKeyboard();
@@ -434,28 +440,35 @@ function SettingsModal({close,keyboardStyle,setKeyboardStyle,physicalKeyboard,se
               }catch(error){
                 setKeyboardError(error instanceof Error?error.message:"Keyboard connection was cancelled.");
               }
-            }}>{hasWebHID?"Connect keyboard":"Detect from typing"}</button>
-            {keyboardError&&<div className="permission-error">{keyboardError}</div>}
-          </section>
+            }}>{hasWebHID?"Connect":"Detect"}</button>
+          </div>
+          {keyboardError&&<div className="permission-error">{keyboardError}</div>}
+        </section>
 
-          <section className="settings-card">
-            <div className="settings-card-head"><div className="settings-card-icon"><Gauge size={17}/></div><div><strong>AI runtime</strong><p>{runtimeProfile?runtimeSummary(runtimeProfile):"Checking this device before loading the local model…"}</p></div></div>
-            <div className="settings-status"><span>Selected backend</span><strong>{runtimeProfile?.preferredBackend??"checking"}</strong></div>
-          </section>
+        <section className="simple-settings-section">
+          <div className="simple-settings-section-head"><Gauge size={17}/><div><strong>Training</strong><span>Control where the background trainer runs.</span></div></div>
+          <div className="performance-options simple-performance" role="group" aria-label="Performance mode">
+            <button className={performanceMode==="low"?"performance-option active":"performance-option"} onClick={()=>setPerformanceMode("low")}><strong>Low</strong><span>100% cloud</span></button>
+            <button className={performanceMode==="balanced"?"performance-option active":"performance-option"} onClick={()=>setPerformanceMode("balanced")}><strong>Balanced</strong><span>70% cloud · 30% device</span></button>
+            <button className={performanceMode==="max"?"performance-option active":"performance-option"} onClick={()=>setPerformanceMode("max")}><strong>Max</strong><span>100% device</span></button>
+          </div>
+          <p className="simple-settings-note">{performanceMode==="max"?"Max falls back to cloud when the device fails the safety check.":"Cloud training is used when the on-device model is not suitable for your device."}</p>
+        </section>
 
-          <section className="settings-card">
-            <div className="settings-card-head"><div className="settings-card-icon"><Activity size={17}/></div><div><strong>Vision signals</strong><p>Use aggregate gaze or hand-pose signals from the Keyboard Vision extension you paired yourself.</p></div></div>
-            <label className="settings-toggle"><span>Use paired vision signals</span><input type="checkbox" checked={visionEnabled} onChange={event=>setVisionEnabled(event.target.checked)}/></label>
-          </section>
-        </div>
-
-        <div className="settings-privacy"><LockKeyhole size={15}/><div><strong>Privacy</strong><span>Camera access for Typing-Pro itself is limited to check-ins. Paired vision signals are optional.</span></div></div>
+        <section className="simple-settings-section">
+          <div className="simple-settings-section-head"><Activity size={17}/><div><strong>Privacy & input</strong><span>Optional features that connect extra input signals.</span></div></div>
+          <label className="simple-settings-toggle">
+            <span><strong>Use paired vision signals</strong><small>Allow your paired Keyboard Vision extension to contribute aggregate gaze or hand-pose signals.</small></span>
+            <input type="checkbox" checked={visionEnabled} onChange={event=>setVisionEnabled(event.target.checked)}/>
+          </label>
+          <div className="simple-settings-privacy"><LockKeyhole size={15}/><span>Camera access in Typing-Pro is limited to check-ins. Nothing here turns on the camera.</span></div>
+        </section>
       </div>
-      <footer className="settings-footer"><span>Changes save automatically.</span><button className="solid-action" onClick={close}>Done</button></footer>
+
+      <footer className="simple-settings-footer"><span>Changes save automatically.</span><button className="solid-action" onClick={close}>Done</button></footer>
     </div>
   </div>
 }
-
 function AccountControl({open}:{open:()=>void}){
   const{isSignedIn}=useUser();
   if(isSignedIn)return <UserButton/>;
