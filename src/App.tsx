@@ -500,6 +500,17 @@ function WordDetailsModal({word,details,loading,error,close}:{word:string;detail
       {loading&&<div className="details-loading">Loading the full meaning…</div>}
       {error&&<div className="permission-error">The full word details could not be loaded. The short meaning can still be used.</div>}
       {details&&<>
+        {details.alternateOf&&<div className="word-form-notice">
+          <div className="word-form-notice-icon"><BookOpenText size={15}/></div>
+          <div>
+            <strong>This word is {details.alternateOfType?.startsWith("alternative")||details.alternateOfType?.startsWith("archaic")||details.alternateOfType?.startsWith("obsolete")||details.alternateOfType?.startsWith("informal")||details.alternateOfType?.startsWith("inflected")||details.alternateOfType?.startsWith("adjective")?"an":"a"} {details.alternateOfType||"an alternative form"} of <b>{details.alternateOf}</b>.</strong>
+            {details.alternateOfSimpleDefinition&&<span>The original word means: <b>{details.alternateOfSimpleDefinition}</b></span>}
+          </div>
+        </div>}
+        {details.alternateOf&&details.alternateOfDefinition&&<section className="details-section original-word-section">
+          <div className="details-label">Original word · {details.alternateOf}</div>
+          <div className="details-definition">{details.alternateOfDefinition}</div>
+        </section>
         <section className="details-section">
           <div className="details-label">Full definition</div>
           <div className="details-definition">{details.fullDefinition}</div>
