@@ -465,7 +465,7 @@ function SettingsModal({close,keyboardStyle,setKeyboardStyle,windowsLayout,setWi
               <button className={windowsLayout==="legacy"?"settings-pill active":"settings-pill"} onClick={()=>setWindowsLayout("legacy")}>Legacy</button>
               <button className={windowsLayout==="copilot"?"settings-pill active":"settings-pill"} onClick={()=>setWindowsLayout("copilot")}>Copilot</button>
             </div>
-          </div>
+          </div>}
           <label className="simple-settings-toggle">
             <span><strong>Finger color coding</strong><small>Color each typing key by the finger that should press it.</small></span>
             <input type="checkbox" checked={fingerColors} onChange={event=>setFingerColors(event.target.checked)}/>
