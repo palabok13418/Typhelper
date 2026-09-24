@@ -47,7 +47,8 @@ async function probeWebGPU(){
   const gpu=(navigator as any).gpu;
   if(!gpu)return{available:false,name:null as string|null};
   try{
-    const adapter=await gpu.requestAdapter({powerPreference:"high-performance"});
+    const windows=/windows/i.test(String(navigator.userAgentData?.platform||navigator.platform||navigator.userAgent||""));
+    const adapter=windows?await gpu.requestAdapter():await gpu.requestAdapter({powerPreference:"high-performance"});
     if(!adapter)return{available:false,name:null as string|null};
     const info=adapter.info??{};
     const name=[info.vendor,info.architecture,info.device,info.description].filter(Boolean).join(" / ")||null;
