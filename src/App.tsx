@@ -2,7 +2,7 @@ import{SignInButton,SignUpButton,UserButton,useUser}from"@clerk/react";
 import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Laptop,Lightbulb,LockKeyhole,Settings2,UserPlus,X}from"lucide-react";
 import{useCallback,useEffect,useRef,useState,type ReactNode}from"react";
 import{load,save}from"./lib/storage";
-import{adaptive,learn,randomWord}from"./lib/typing";
+import{learn,randomWord}from"./lib/typing";
 import{GazeMonitor}from"./lib/gaze";
 import{scoreWebNN}from"./lib/webnn";
 import{createQuiz,scoreQuiz,type QuizScore}from"./lib/quiz";
@@ -11,7 +11,6 @@ import{VisionBridge}from"./lib/vision-bridge";
 import{FUNCTION_ROW,MAC_BOTTOM_ROW,MAC_ROWS,WINDOWS_BOTTOM_ROW,WINDOWS_COPILOT_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
 import{fingerClass}from"./lib/finger-map";
 import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateSession,animateWord,animateWordExit}from"./lib/animations";
-import{quietlyRefineProfile}from"./lib/local-model";
 import{analyzePractice,analyzeQuiz}from"./lib/ai-coach";
 import{probeDeviceRuntime,runtimeSummary,type DeviceRuntimeProfile}from"./lib/device-runtime";
 import{connectPhysicalKeyboard,hasWebHID,observeKeyboardKey,readKeyboardProfile,type KeyboardProfile}from"./lib/keyboard-profile";
@@ -295,18 +294,6 @@ export default function App({clerk=false}:{clerk?:boolean}){
     window.addEventListener("keydown",onKey);
     return()=>window.removeEventListener("keydown",onKey);
   },[word,index,quiz,account,help,settings,detailsOpen]);
-
-  useEffect(()=>{
-    if(p.totalPracticeWords===0||p.totalPracticeWords%20!==0)return;
-    if(Date.now()-refineAt.current<120000)return;
-    refineAt.current=Date.now();
-    const run=()=>void quietlyRefineProfile("activeSeconds="+p.activeSeconds+";totalWords="+p.totalPracticeWords+";skills="+JSON.stringify(skills.current),performanceMode);
-    if("requestIdleCallback"in window){
-      (window as any).requestIdleCallback(run,{timeout:8000});
-    }else{
-      globalThis.setTimeout(run,3000);
-    }
-  },[p.totalPracticeWords,performanceMode]);
 
   const target=nextKey(word,index);
   const percent=word ? Math.min(100,Math.round((index/word.length)*100)) : 0;
