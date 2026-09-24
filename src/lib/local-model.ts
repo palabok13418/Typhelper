@@ -1,10 +1,14 @@
+import{probeDeviceRuntime}from"./device-runtime";
+
 export async function quietlyRefineProfile(summary:string){
-  if(!("gpu" in navigator))return null;
+  const profile=await probeDeviceRuntime();
+  if(!profile.localModelAllowed)return{profile,backend:"cloud",result:null};
+
   try{
     const w:any=await import("@mlc-ai/web-llm");
     const list=w.prebuiltAppConfig?.model_list??[];
     const model=list.find((m:any)=>/Qwen2\.5-7B-Instruct-q4f16_1-MLC/i.test(m.model_id))??list.find((m:any)=>/Qwen2\.5-3B-Instruct-q4f16_1-MLC/i.test(m.model_id));
-    if(!model)return null;
+    if(!model)return{profile,backend:profile.preferredBackend,result:null};
     const engine=await w.CreateMLCEngine(model.model_id);
     const result=await engine.chat.completions.create({
       messages:[
@@ -14,7 +18,7 @@ export async function quietlyRefineProfile(summary:string){
       temperature:.1,max_tokens:90
     });
     const raw=result.choices?.[0]?.message?.content;
-    if(typeof raw==="string"){localStorage.setItem("typing-pro-model-profile",raw);return raw}
-    return null;
-  }catch{return null}
+    if(typeof raw==="string"){localStorage.setItem("typing-pro-model-profile",raw);return{profile,backend:profile.preferredBackend,result:raw}}
+    return{profile,backend:profile.preferredBackend,result:null};
+  }catch{return{profile,backend:profile.preferredBackend,result:null}}
 }
