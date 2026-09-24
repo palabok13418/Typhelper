@@ -9,7 +9,7 @@ import{createQuiz,scoreQuiz,type QuizScore}from"./lib/quiz";
 import{PersonalModel}from"./lib/personal-model";
 import{VisionBridge}from"./lib/vision-bridge";
 import{FUNCTION_ROW,MAC_BOTTOM_ROW,MAC_ROWS,WINDOWS_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
-import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateWord}from"./lib/animations";
+import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateWord,animateWordExit}from"./lib/animations";
 import{quietlyRefineProfile}from"./lib/local-model";
 import{fetchPracticeWord,type PracticeWord}from"./lib/word-api";
 import type{GazeState,Progress,QuizResult}from"./types";
@@ -171,18 +171,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
           setIndex(0);
           wordStarted.current=performance.now();
         };
-        const currentWord=wordRef.current;
-        if(currentWord){
-          import("animejs").then(({animate})=>animate(currentWord,{
-            opacity:[1,0],
-            y:[0,-8],
-            duration:130,
-            ease:"inQuad",
-            complete:advance
-          }));
-        }else{
-          advance();
-        }
+        animateWordExit(wordRef.current,advance);
       }else{
         setIndex(value=>value+1);
       }
