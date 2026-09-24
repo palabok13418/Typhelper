@@ -11,6 +11,8 @@ import{VisionBridge}from"./lib/vision-bridge";
 import{FUNCTION_ROW,MAC_BOTTOM_ROW,MAC_ROWS,WINDOWS_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
 import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateSession,animateWord,animateWordExit}from"./lib/animations";
 import{quietlyRefineProfile}from"./lib/local-model";
+import{probeDeviceRuntime,runtimeSummary,type DeviceRuntimeProfile}from"./lib/device-runtime";
+import{connectPhysicalKeyboard,hasWebHID,observeKeyboardKey,readKeyboardProfile,type KeyboardProfile}from"./lib/keyboard-profile";
 import{fetchPracticeBatch,type PracticeWord}from"./lib/word-api";
 import type{GazeState,Progress,QuizResult}from"./types";
 
@@ -30,6 +32,9 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const[settings,setSettings]=useState(false);
   const[keyboardStyle,setKeyboardStyle]=useState<KeyboardStyle>(()=>localStorage.getItem("typing-pro-keyboard-style")==="mac"?"mac":"windows");
   const[visionEnabled,setVisionEnabled]=useState(()=>localStorage.getItem("typing-pro-vision-enabled")==="true");
+  const[runtimeProfile,setRuntimeProfile]=useState<DeviceRuntimeProfile|null>(null);
+  const[physicalKeyboard,setPhysicalKeyboard]=useState<KeyboardProfile|null>(()=>readKeyboardProfile());
+  const[keyboardError,setKeyboardError]=useState<string|null>(null);
   const learner=useRef<PersonalModel|null>(null);
   const vision=useRef(new VisionBridge());
   const skills=useRef(p.skillMap);
@@ -49,6 +54,12 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const workspaceRef=useRef<HTMLElement>(null);
 
   useEffect(()=>{skills.current=p.skillMap},[p.skillMap]);
+
+  useEffect(()=>{
+    let cancelled=false;
+    void probeDeviceRuntime().then(profile=>{if(!cancelled)setRuntimeProfile(profile)}).catch(()=>{});
+    return()=>{cancelled=true};
+  },[]);
   useEffect(()=>save(p),[p]);
 
   useEffect(()=>{
@@ -168,6 +179,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
       if(event.key.length!==1&&event.key!==" ")return;
       const expected=word[index]??"";
       const actual=event.key;
+      setPhysicalKeyboard(observeKeyboardKey(actual));
       const normalizedExpected=normalizeKey(expected);
       const normalizedActual=normalizeKey(actual);
       const now=performance.now();
@@ -269,7 +281,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
             {rows.map((row,i)=>renderKeys(row,"main-row-"+i))}
             {renderKeys(bottom,"bottom-row")}
           </div>
-          <div className="keyboard-note"><Activity size={13}/><span>{keyboardStyle==="windows"?"Windows keyboard":"Mac keyboard"} · the trainer learns from every correct and incorrect press</span></div>
+          <div className="keyboard-note"><Activity size={13}/><span>{physicalKeyboard?.exactDevice?physicalKeyboard.name:(keyboardStyle==="windows"?"Windows keyboard":"Mac keyboard")} · the trainer learns from every correct and incorrect press</span></div>
         </div>
       </section>
 
@@ -284,6 +296,9 @@ export default function App({clerk=false}:{clerk?:boolean}){
     {help&&<SimpleModal title="How it works" icon={<CircleHelp size={20}/>} close={()=>setHelp(false)}><p>Type the highlighted letters without looking down. When you pause for a moment, the trainer shows the exact key to press next.</p><p>Each completed word is replaced with another randomized word so practice keeps moving.</p></SimpleModal>}
     {settings&&<SimpleModal title="Settings" icon={<Settings2 size={20}/>} close={()=>setSettings(false)}>
       <div className="setting-section"><div><strong>Keyboard style</strong><small>Windows is the default. Switch to Mac styling whenever you prefer.</small></div><div className="choice-row" role="group" aria-label="Keyboard style"><button className={keyboardStyle==="windows"?"choice active":"choice"} onClick={()=>setKeyboardStyle("windows")}>Windows</button><button className={keyboardStyle==="mac"?"choice active":"choice"} onClick={()=>setKeyboardStyle("mac")}>Mac</button></div></div>
+      <div className="setting-section"><div><strong>Physical keyboard</strong><small>{physicalKeyboard?.exactDevice?<>Detected <strong>{physicalKeyboard.name}</strong>. Typing-Pro will use its detected layout when it can.</>:physicalKeyboard?<>Observed your key layout locally. Connect the keyboard for a hardware identity when supported.</>:<>Typing-Pro can learn your key layout from normal typing without camera access.</>}</small></div><button className="choice active" onClick={async()=>{setKeyboardError(null);try{const profile=await connectPhysicalKeyboard();setPhysicalKeyboard(profile);setKeyboardStyle(profile.layout==="mac"?"mac":"windows")}catch(error){setKeyboardError(error instanceof Error?error.message:"Keyboard connection was cancelled.")}}}>{hasWebHID()?"Connect keyboard":"Detect from typing"}</button></div>
+      {keyboardError&&<div className="permission-error">{keyboardError}</div>}
+      <div className="setting-section"><div><strong>AI runtime</strong><small>{runtimeProfile?runtimeSummary(runtimeProfile):"Checking this device before loading the local model…"}</small></div><div className="runtime-badge">{runtimeProfile?.preferredBackend??"checking"}</div></div>
       <label className="toggle-row"><span><strong>Use paired vision signals</strong><small>Accept aggregate gaze or hand-pose signals from the Keyboard Vision extension you paired yourself.</small></span><input type="checkbox" checked={visionEnabled} onChange={event=>setVisionEnabled(event.target.checked)}/></label>
       <div className="setting-note"><LockKeyhole size={14}/><span>Camera access for Typing-Pro itself is limited to check-ins.</span></div>
     </SimpleModal>}
