@@ -22,7 +22,8 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const[index,setIndex]=useState(0);
   const[wrong,setWrong]=useState(false);
   const[stuck,setStuck]=useState(false);
-  const[definition,setDefinition]=useState<string|null>(null);\n  const[wordIsNew,setWordIsNew]=useState(false);
+  const[definition,setDefinition]=useState<string|null>(null);
+  const[wordIsNew,setWordIsNew]=useState(false);
   const[account,setAccount]=useState(false);
   const[quiz,setQuiz]=useState(false);
   const[help,setHelp]=useState(false);
@@ -38,7 +39,8 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const wordStarted=useRef(performance.now());
   const hadError=useRef(false);
   const refineAt=useRef(0);
-  const wordRef=useRef<HTMLDivElement>(null);\n  const sessionRef=useRef<HTMLDivElement>(null);
+  const wordRef=useRef<HTMLDivElement>(null);
+  const sessionRef=useRef<HTMLDivElement>(null);
   const definitionRef=useRef<HTMLDivElement>(null);
   const keyboardRef=useRef<HTMLDivElement>(null);
   const shownWords=useRef<Set<string>>(readShownWords());
@@ -52,7 +54,8 @@ export default function App({clerk=false}:{clerk?:boolean}){
     const controller=new AbortController();
     const show=({word:nextWord,definition:nextDefinition,isNew}:PracticeWord)=>{
       setWord(nextWord);
-      setDefinition(nextDefinition);
+      setWordIsNew(isNew);
+      setDefinition(isNew ? (nextDefinition ?? "Meaning unavailable") : null);
       if(isNew)markShownWord(nextWord,shownWords.current);
       wordStarted.current=performance.now();
     };
@@ -91,6 +94,14 @@ export default function App({clerk=false}:{clerk?:boolean}){
   useEffect(()=>{
     if(definition)requestAnimationFrame(()=>animateDefinition(definitionRef.current));
   },[definition]);
+
+  useEffect(()=>{
+    requestAnimationFrame(()=>animateSession(sessionRef.current));
+  },[word,index]);
+
+  useEffect(()=>{
+    requestAnimationFrame(()=>animateSession(sessionRef.current));
+  },[word,index]);
 
   useEffect(()=>{
     const currentTarget=nextKey(word,index);
@@ -166,7 +177,8 @@ export default function App({clerk=false}:{clerk?:boolean}){
         const next=prepared??{word:randomWord(skills.current,word),definition:null,isNew:false};
         const advance=()=>{
           setWord(next.word);
-          setDefinition(next.definition);
+          setWordIsNew(next.isNew);
+          setDefinition(next.isNew ? (next.definition ?? "Meaning unavailable") : null);
           if(next.isNew)markShownWord(next.word,shownWords.current);
           setIndex(0);
           wordStarted.current=performance.now();
