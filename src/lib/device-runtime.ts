@@ -12,10 +12,17 @@ export interface DeviceRuntimeProfile{
   wasm:boolean;
   gpuName:string|null;
   benchmarkMs:number|null;
+  jsHeapMB:number|null;
+  jsHeapLimitMB:number|null;
+  estimatedMemoryHeadroomMB:number|null;
+  modelBudgetMB:number;
   preferredBackend:RuntimeBackend;
   localModelAllowed:boolean;
   confidence:number;
 }
+
+const LOCAL_MODEL_BUDGET_MB=512;
+const HIGH_MEMORY_LOCAL_MIN_GB=16;
 
 function getDeviceClass():DeviceClass{
   const ua=navigator.userAgent||"";
@@ -44,6 +51,15 @@ async function tinyBenchmark(){
   return performance.now()-start;
 }
 
+function readHeap(){
+  const memory=(performance as any).memory;
+  if(!memory)return{used:null as number|null,limit:null as number|null};
+  return{
+    used:typeof memory.usedJSHeapSize==="number"?memory.usedJSHeapSize/1048576:null,
+    limit:typeof memory.jsHeapSizeLimit==="number"?memory.jsHeapSizeLimit/1048576:null
+  };
+}
+
 export async function probeDeviceRuntime():Promise<DeviceRuntimeProfile>{
   const nav:any=navigator;
   const gpu=await probeWebGPU();
@@ -52,21 +68,35 @@ export async function probeDeviceRuntime():Promise<DeviceRuntimeProfile>{
   const benchmarkMs=await tinyBenchmark();
   const cores=typeof nav.hardwareConcurrency==="number"?nav.hardwareConcurrency:null;
   const memory=typeof nav.deviceMemory==="number"?nav.deviceMemory:null;
+  const heap=readHeap();
+
+  // Browser memory APIs are incomplete: GPU/WASM allocations are not included.
+  // Treat this as a conservative admission check, never as proof that a model is safe.
+  const heapHeadroom=heap.limit!==null&&heap.used!==null?Math.max(0,heap.limit-heap.used):null;
+  const hasEnoughRam=memory!==null&&memory>=HIGH_MEMORY_LOCAL_MIN_GB;
+  const hasHeapHeadroom=heapHeadroom===null||heapHeadroom>=LOCAL_MODEL_BUDGET_MB*2;
+  const accelerated=(webnn||gpu.available);
   const localModelAllowed=(
-    (webnn||gpu.available)&&
+    accelerated&&
+    hasEnoughRam&&
+    hasHeapHeadroom&&
     (cores===null||cores>=4)&&
-    (memory===null||memory>=4)&&
     benchmarkMs<45
   );
-  const preferredBackend:RuntimeBackend=webnn&&localModelAllowed?"webnn":gpu.available&&localModelAllowed?"webgpu":wasm&&benchmarkMs<85?"wasm":"cloud";
+
+  const preferredBackend:RuntimeBackend=localModelAllowed
+    ?(webnn?"webnn":"webgpu")
+    :"cloud";
+
   const confidence=Math.min(1,
-    .35+
+    .25+
     (cores!==null?.15:0)+
-    (memory!==null?.15:0)+
+    (memory!==null?.2:0)+
     (webnn?.15:0)+
     (gpu.available?.15:0)+
-    (benchmarkMs!==null?.15:0)
+    (heapHeadroom!==null?.1:0)
   );
+
   return{
     deviceClass:getDeviceClass(),
     platform:nav.userAgentData?.platform||nav.platform||"unknown",
@@ -78,6 +108,10 @@ export async function probeDeviceRuntime():Promise<DeviceRuntimeProfile>{
     wasm,
     gpuName:gpu.name,
     benchmarkMs:Math.round(benchmarkMs),
+    jsHeapMB:heap.used===null?null:Math.round(heap.used),
+    jsHeapLimitMB:heap.limit===null?null:Math.round(heap.limit),
+    estimatedMemoryHeadroomMB:heapHeadroom===null?null:Math.round(heapHeadroom),
+    modelBudgetMB:LOCAL_MODEL_BUDGET_MB,
     preferredBackend,
     localModelAllowed,
     confidence
@@ -85,6 +119,10 @@ export async function probeDeviceRuntime():Promise<DeviceRuntimeProfile>{
 }
 
 export function runtimeSummary(profile:DeviceRuntimeProfile){
-  if(profile.preferredBackend==="cloud")return"Cloud runtime selected";
-  return`On-device ${profile.preferredBackend.toUpperCase()} runtime selected`;
+  if(profile.preferredBackend==="cloud"){
+    if(profile.memoryGB!==null&&profile.memoryGB<HIGH_MEMORY_LOCAL_MIN_GB)return"Cloud runtime selected for memory safety";
+    if(profile.estimatedMemoryHeadroomMB!==null&&profile.estimatedMemoryHeadroomMB<LOCAL_MODEL_BUDGET_MB*2)return"Cloud runtime selected for browser memory safety";
+    return"Cloud runtime selected";
+  }
+  return`On-device ${profile.preferredBackend.toUpperCase()} runtime selected · ${profile.modelBudgetMB} MB safety budget`;
 }
