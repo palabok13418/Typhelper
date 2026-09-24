@@ -32,7 +32,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
   display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:26px;align-items:center
 }
 .practice-area{min-height:690px;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.session-line{position:absolute;top:0;left:0;right:0;width:auto;display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin:0;will-change:transform}
+.session-line{position:absolute;top:0;left:0;right:0;width:auto;display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin:0}
 .word-stage{
   position:relative;width:min(790px,100%);min-height:245px;display:flex;flex-direction:column;
   align-items:center;justify-content:center;transform:translateY(-20px)
@@ -51,7 +51,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
   min-height:92px;display:flex;align-items:center;justify-content:center;gap:.02em;
   font-size:clamp(56px,8vw,96px);font-weight:720;letter-spacing:.06em;line-height:1.05
 }
-.word-char{color:#aeb1b7;will-change:transform,opacity}
+.word-char{color:#aeb1b7}
 .word-char.typed{color:#2f64ce}
 .word-char.current{color:#202124;text-decoration:underline;text-decoration-thickness:4px;text-underline-offset:12px}
 .word-char.wrong{color:var(--danger);text-decoration:underline;text-decoration-thickness:4px;text-underline-offset:12px}
@@ -69,7 +69,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .key{
   min-width:0;min-height:42px;height:42px;padding:0 5px;display:flex;align-items:center;justify-content:center;
   border:1px solid #d9dad7;border-radius:8px;background:#f1f2ef;color:#7d8086;
-  font-size:11px;font-weight:680;letter-spacing:.025em;text-align:center;white-space:nowrap;will-change:transform,background-color
+  font-size:11px;font-weight:680;letter-spacing:.025em;text-align:center;white-space:nowrap
 }
 .function-key{height:30px;min-height:30px;font-size:9px;border-radius:7px;background:#f7f7f5}
 .key.modifier-key{color:#676a70;background:#eceeea}
