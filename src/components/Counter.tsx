@@ -1,5 +1,5 @@
 import { motion, useSpring, useTransform } from "motion/react";
-import { useEffect } from "react";
+import { useEffect, type CSSProperties } from "react";
 import "./Counter.css";
 
 type CounterPlace = number | ".";
@@ -13,14 +13,14 @@ export interface CounterProps {
   horizontalPadding?: number;
   textColor?: string;
   fontWeight?: number | string;
-  containerStyle?: React.CSSProperties;
-  counterStyle?: React.CSSProperties;
-  digitStyle?: React.CSSProperties;
+  containerStyle?: CSSProperties;
+  counterStyle?: CSSProperties;
+  digitStyle?: CSSProperties;
   gradientHeight?: number;
   gradientFrom?: string;
   gradientTo?: string;
-  topGradientStyle?: React.CSSProperties;
-  bottomGradientStyle?: React.CSSProperties;
+  topGradientStyle?: CSSProperties;
+  bottomGradientStyle?: CSSProperties;
 }
 
 function Number({mv,number,height}:{mv:any;number:number;height:number}){
@@ -45,7 +45,7 @@ function getValueRoundedToPlace(value:number,place:number){
   return Math.floor(normalizeNearInteger(scaled));
 }
 
-function Digit({place,value,height,digitStyle}:{place:CounterPlace;value:number;height:number;digitStyle?:React.CSSProperties}){
+function Digit({place,value,height,digitStyle}:{place:CounterPlace;value:number;height:number;digitStyle?:CSSProperties}){
   const isDecimal=place===".";
   const isDot=place===".";
   const valueRoundedToPlace=isDot?0:getValueRoundedToPlace(value,place as number);
@@ -85,7 +85,7 @@ export default function Counter({
   bottomGradientStyle
 }:CounterProps){
   const height=fontSize+padding;
-  const defaultCounterStyle:React.CSSProperties={
+  const defaultCounterStyle:CSSProperties={
     fontSize,
     gap,
     borderRadius,
@@ -95,11 +95,11 @@ export default function Counter({
     fontWeight,
     direction:"ltr"
   };
-  const defaultTopGradientStyle:React.CSSProperties={
+  const defaultTopGradientStyle:CSSProperties={
     height:gradientHeight,
     background:`linear-gradient(to bottom, ${gradientFrom}, ${gradientTo})`
   };
-  const defaultBottomGradientStyle:React.CSSProperties={
+  const defaultBottomGradientStyle:CSSProperties={
     height:gradientHeight,
     background:`linear-gradient(to top, ${gradientFrom}, ${gradientTo})`
   };
