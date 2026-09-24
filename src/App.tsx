@@ -44,6 +44,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const wordStarted=useRef(performance.now());
   const hadError=useRef(false);
   const refineAt=useRef(0);
+  const refining=useRef(false);
   const wordRef=useRef<HTMLDivElement>(null);
   const sessionRef=useRef<HTMLDivElement>(null);
   const definitionRef=useRef<HTMLDivElement>(null);
@@ -56,10 +57,11 @@ export default function App({clerk=false}:{clerk?:boolean}){
   useEffect(()=>{skills.current=p.skillMap},[p.skillMap]);
 
   useEffect(()=>{
+    if(!settings||runtimeProfile)return;
     let cancelled=false;
     void probeDeviceRuntime().then(profile=>{if(!cancelled)setRuntimeProfile(profile)}).catch(()=>{});
     return()=>{cancelled=true};
-  },[]);
+  },[settings,runtimeProfile]);
   useEffect(()=>save(p),[p]);
 
   useEffect(()=>{
@@ -222,16 +224,26 @@ export default function App({clerk=false}:{clerk?:boolean}){
   },[word,index,quiz,account,help,settings]);
 
   useEffect(()=>{
-    if(Date.now()-refineAt.current<120000)return;
-    if(!("gpu"in navigator))return;
+    if(p.totalPracticeWords===0||p.totalPracticeWords%20!==0)return;
+    if(Date.now()-refineAt.current<120000||refining.current)return;
     refineAt.current=Date.now();
-    const run=()=>void quietlyRefineProfile("activeSeconds="+p.activeSeconds+";totalWords="+p.totalPracticeWords+";skills="+JSON.stringify(skills.current));
+    refining.current=true;
+    let idleId:number|undefined;
+    let timerId:number|undefined;
+    const run=()=>{
+      void quietlyRefineProfile("activeSeconds="+p.activeSeconds+";totalWords="+p.totalPracticeWords+";skills="+JSON.stringify(skills.current))
+        .finally(()=>{refining.current=false});
+    };
     if("requestIdleCallback"in window){
-      (window as any).requestIdleCallback(run,{timeout:4000});
+      idleId=(window as any).requestIdleCallback(run,{timeout:8000});
     }else{
-      globalThis.setTimeout(run,1000);
+      timerId=window.setTimeout(run,3000);
     }
-  },[p.activeSeconds,p.totalPracticeWords]);
+    return()=>{
+      if(idleId!==undefined&&(window as any).cancelIdleCallback)(window as any).cancelIdleCallback(idleId);
+      if(timerId!==undefined)window.clearTimeout(timerId);
+    };
+  },[p.totalPracticeWords]);
 
   useEffect(()=>{if(p.activeSeconds>=1800)setQuiz(true)},[p.activeSeconds]);
 
