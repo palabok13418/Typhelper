@@ -31,8 +31,8 @@ function modelLooksSmallEnough(model:any){
 
 function chooseSmallModel(list:any[]){
   return list.filter(modelLooksSmallEnough).sort((a:any,b:any)=>{
-    const sa=String(a.model_id).match(/(\\d+(?:\\.\\d+)?)(B|M)/i);
-    const sb=String(b.model_id).match(/(\\d+(?:\\.\\d+)?)(B|M)/i);
+    const sa=String(a.model_id).match(/(\d+(?:\.\d+)?)(B|M)/i);
+    const sb=String(b.model_id).match(/(\d+(?:\.\d+)?)(B|M)/i);
     const av=sa?(Number(sa[1])*(sa[2].toUpperCase()==="B"?1000:1)):99999;
     const bv=sb?(Number(sb[1])*(sb[2].toUpperCase()==="B"?1000:1)):99999;
     return av-bv;
