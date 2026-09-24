@@ -23,12 +23,19 @@ export const WINDOWS_ROWS:KeyDef[][]=[
 ];
 
 export const WINDOWS_BOTTOM_ROW:KeyDef[]=[
-  {k:"left-ctrl",label:"CTRL",w:1.35,kind:"modifier"},{k:"win",label:"WIN",w:1.35,kind:"modifier"},
+  {k:"left-ctrl",label:"CTRL",w:1.35,kind:"modifier"},{k:"win",label:"⊞",w:1.35,kind:"modifier"},
   {k:"left-alt",label:"ALT",w:1.35,kind:"modifier"},{k:"space",label:"SPACE",w:6.2,kind:"modifier"},
   {k:"right-alt",label:"ALT",w:1.35,kind:"modifier"},{k:"menu",label:"MENU",w:1.35,kind:"modifier"},
   {k:"right-ctrl",label:"CTRL",w:1.35,kind:"modifier"}
 ];
 
+
+export const WINDOWS_COPILOT_BOTTOM_ROW:KeyDef[]=[
+  {k:"left-ctrl",label:"CTRL",w:1.35,kind:"modifier"},{k:"win",label:"⊞",w:1.35,kind:"modifier"},
+  {k:"left-alt",label:"ALT",w:1.35,kind:"modifier"},{k:"space",label:"SPACE",w:6.2,kind:"modifier"},
+  {k:"right-alt",label:"ALT",w:1.35,kind:"modifier"},{k:"copilot",label:"COPILOT",w:1.55,kind:"modifier"},
+  {k:"right-ctrl",label:"CTRL",w:1.35,kind:"modifier"}
+];
 export const MAC_ROWS:KeyDef[][]=[
   [{k:"tab",label:"TAB",w:1.5,kind:"modifier"},{k:"q"},{k:"w"},{k:"e"},{k:"r"},{k:"t"},{k:"y"},{k:"u"},{k:"i"},{k:"o"},{k:"p"},{k:"["},{k:"]"},{k:"\\",w:1.5}],
   [{k:"caps",label:"CAPS",w:1.75,kind:"modifier"},{k:"a"},{k:"s"},{k:"d"},{k:"f"},{k:"g"},{k:"h"},{k:"j"},{k:"k"},{k:"l"},{k:";"},{k:"'",w:1},{k:"return",label:"RETURN",w:2.25,kind:"action"}],
@@ -37,8 +44,8 @@ export const MAC_ROWS:KeyDef[][]=[
 
 export const MAC_BOTTOM_ROW:KeyDef[]=[
   {k:"left-ctrl",label:"CTRL",w:1.4,kind:"modifier"},{k:"left-option",label:"OPTION",w:1.2,kind:"modifier"},
-  {k:"left-command",label:"COMMAND",w:1.5,kind:"modifier"},{k:"space",label:"SPACE",w:6.2,kind:"modifier"},
-  {k:"right-command",label:"COMMAND",w:1.5,kind:"modifier"},{k:"right-option",label:"OPTION",w:1.2,kind:"modifier"},
+  {k:"left-command",label:"⌘",w:1.5,kind:"modifier"},{k:"space",label:"SPACE",w:6.2,kind:"modifier"},
+  {k:"right-command",label:"⌘",w:1.5,kind:"modifier"},{k:"right-option",label:"OPTION",w:1.2,kind:"modifier"},
   {k:"fn",label:"FN",w:1.2,kind:"modifier"},{k:"right-ctrl",label:"CTRL",w:1.4,kind:"modifier"}
 ];
 

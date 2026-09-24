@@ -20,7 +20,7 @@ export default async function handler(req,res){
         body:JSON.stringify({
           model:process.env.GROQ_MODEL||"openai/gpt-oss-20b",
           messages:[
-            {role:"system",content:"You are Typing-Pro's cloud typing-training model. Analyze aggregate typing metrics only. Never request or infer raw keystroke streams, camera frames, or personal identifiers. Return compact JSON with focusKeys and difficulty."},
+            {role:"system",content:"You are Typhelper's cloud typing-training model. Analyze aggregate typing metrics only. Never request or infer raw keystroke streams, camera frames, or personal identifiers. Return compact JSON with focusKeys and difficulty."},
             {role:"user",content:summary}
           ],
           temperature:0.1,

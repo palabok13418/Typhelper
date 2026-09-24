@@ -13,6 +13,6 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run build
-      - run: npx vercel@latest --prod --yes --scope unblockedgames --name typing-pro
+      - run: npx vercel@latest --prod --yes --scope unblockedgames --name typhelper
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

@@ -470,3 +470,13 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .stat-counter{display:flex;align-items:center;min-height:43px;margin-top:7px}
 .stat-counter .counter-container{display:block}
 .count-up-text{display:inline-block;font-variant-numeric:tabular-nums;font-size:43px;font-weight:760;letter-spacing:-.06em;line-height:1;color:#202124}
+
+.os-mark{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:14px;height:14px}
+.windows-mark{display:grid;grid-template-columns:repeat(2,5px);grid-auto-rows:5px;gap:2px}
+.windows-mark i{display:block;background:currentColor}
+.mac-mark{font-size:14px;line-height:1}
+.checkin-analysis-state{min-height:330px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:9px;color:#6f7279}
+.checkin-analysis-state strong{font-size:16px;color:#303236}
+.checkin-analysis-state span{max-width:470px;font-size:11px;line-height:1.55}
+.analysis-spinner{width:34px;height:34px;border:3px solid #e8e9e6;border-top-color:#202124;border-radius:50%;animation:typhelper-spin .8s linear infinite;margin-bottom:4px}
+@keyframes typhelper-spin{to{transform:rotate(360deg)}}

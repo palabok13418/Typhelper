@@ -1,18 +1,17 @@
 import{SignInButton,SignUpButton,UserButton,useUser}from"@clerk/react";
-import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Laptop,Lightbulb,LockKeyhole,Palette,Settings2,UserPlus,X}from"lucide-react";
+import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Laptop,Lightbulb,LockKeyhole,Settings2,UserPlus,X}from"lucide-react";
 import{useCallback,useEffect,useRef,useState,type ReactNode}from"react";
 import{load,save}from"./lib/storage";
-import{adaptive,learn,randomWord}from"./lib/typing";
+import{learn,randomWord}from"./lib/typing";
 import{GazeMonitor}from"./lib/gaze";
 import{scoreWebNN}from"./lib/webnn";
 import{createQuiz,scoreQuiz,type QuizScore}from"./lib/quiz";
 import{PersonalModel}from"./lib/personal-model";
 import{VisionBridge}from"./lib/vision-bridge";
-import{FUNCTION_ROW,MAC_BOTTOM_ROW,MAC_ROWS,WINDOWS_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
+import{FUNCTION_ROW,MAC_BOTTOM_ROW,MAC_ROWS,WINDOWS_BOTTOM_ROW,WINDOWS_COPILOT_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
 import{fingerClass}from"./lib/finger-map";
 import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateSession,animateWord,animateWordExit}from"./lib/animations";
-import{quietlyRefineProfile}from"./lib/local-model";
-import{probeDeviceRuntime,runtimeSummary,type DeviceRuntimeProfile}from"./lib/device-runtime";
+import{analyzePractice,analyzeQuiz}from"./lib/ai-coach";
 import{connectPhysicalKeyboard,hasWebHID,observeKeyboardKey,readKeyboardProfile,type KeyboardProfile}from"./lib/keyboard-profile";
 import{readPerformanceMode,savePerformanceMode,performanceModeLabel,type PerformanceMode}from"./lib/performance";
 import{fetchPracticeBatch,fetchSimpleDefinition,fetchWordDetails,type PracticeWord,type WordDetails}from"./lib/word-api";
@@ -21,6 +20,7 @@ import CountUp from "./components/CountUp";
 import type{GazeState,Progress,QuizResult}from"./types";
 
 type KeyboardStyle="windows"|"mac";
+type WindowsLayout="legacy"|"copilot";
 
 export default function App({clerk=false}:{clerk?:boolean}){
   const[p,setP]=useState<Progress>(()=>load());
@@ -41,10 +41,10 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const[help,setHelp]=useState(false);
   const[settings,setSettings]=useState(false);
   const[keyboardStyle,setKeyboardStyle]=useState<KeyboardStyle>(()=>localStorage.getItem("typing-pro-keyboard-style")==="mac"?"mac":"windows");
+  const[windowsLayout,setWindowsLayout]=useState<WindowsLayout>(()=>localStorage.getItem("typhelper-windows-layout")==="copilot"?"copilot":"legacy");
   const[fingerColors,setFingerColors]=useState(()=>localStorage.getItem("typing-pro-finger-colors")!=="false");
   const[visionEnabled,setVisionEnabled]=useState(()=>localStorage.getItem("typing-pro-vision-enabled")==="true");
   const[performanceMode,setPerformanceMode]=useState<PerformanceMode>(()=>readPerformanceMode());
-  const[runtimeProfile,setRuntimeProfile]=useState<DeviceRuntimeProfile|null>(null);
   const[physicalKeyboard,setPhysicalKeyboard]=useState<KeyboardProfile|null>(()=>readKeyboardProfile());
   const[keyboardError,setKeyboardError]=useState<string|null>(null);
   const learner=useRef<PersonalModel|null>(null);
@@ -69,17 +69,13 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const wordQueue=useRef<PracticeWord[]>([]);
   const queueRequest=useRef<AbortController|null>(null);
   const detailsRequest=useRef<AbortController|null>(null);
+  const recentPractice=useRef<Array<{word:string;correct:boolean;duration:number}>>([]);
+  const practiceAiBusy=useRef(false);
   const workspaceRef=useRef<HTMLElement>(null);
 
   useEffect(()=>{skills.current=p.skillMap},[p.skillMap]);
 
-  useEffect(()=>{
-    savePerformanceMode(performanceMode);
-    let cancelled=false;
-    setRuntimeProfile(null);
-    void probeDeviceRuntime(performanceMode).then(profile=>{if(!cancelled)setRuntimeProfile(profile)}).catch(()=>{});
-    return()=>{cancelled=true};
-  },[performanceMode]);
+  useEffect(()=>{savePerformanceMode(performanceMode)},[performanceMode]);
   useEffect(()=>save(p),[p]);
 
   const finishEntryCountUp=useCallback(()=>setAnimateWordsOnEntry(false),[]);
@@ -188,9 +184,8 @@ export default function App({clerk=false}:{clerk?:boolean}){
     animateKeyGuide(key);
   },[stuck,word,index]);
 
-  useEffect(()=>{
-    localStorage.setItem("typing-pro-keyboard-style",keyboardStyle);
-  },[keyboardStyle]);
+  useEffect(()=>{localStorage.setItem("typing-pro-keyboard-style",keyboardStyle)},[keyboardStyle]);
+  useEffect(()=>{localStorage.setItem("typhelper-windows-layout",windowsLayout)},[windowsLayout]);
   useEffect(()=>{
     localStorage.setItem("typing-pro-finger-colors",String(fingerColors));
   },[fingerColors]);
@@ -208,13 +203,24 @@ export default function App({clerk=false}:{clerk?:boolean}){
         active.current=Math.min(1800,active.current+1);
         setP(current=>({...current,activeSeconds:Math.min(1800,current.activeSeconds+1)}));
       }
-      if(active.current>=1800)setQuiz(true);
     },1000);
     window.addEventListener("keydown",activity);
     window.addEventListener("pointerdown",activity);
     return()=>{window.clearInterval(timer);window.removeEventListener("keydown",activity);window.removeEventListener("pointerdown",activity);bridge.stop()};
   },[quiz,visionEnabled]);
 
+  async function runPracticeCoach(){
+    if(practiceAiBusy.current||recentPractice.current.length<10)return;
+    practiceAiBusy.current=true;
+    try{
+      const result=await analyzePractice(skills.current,recentPractice.current,performanceMode);
+      if(result?.recommendedWords.length){
+        const existing=new Set(wordQueue.current.map(item=>item.word));
+        const additions=result.recommendedWords.filter(item=>item!==word&&!existing.has(item)&&!shownWords.current.has(item));
+        if(additions.length)wordQueue.current.unshift(...additions.map(item=>({word:item,definition:null,isNew:true})));
+      }
+    }finally{practiceAiBusy.current=false}
+  }
   useEffect(()=>{
     const onKey=(event:KeyboardEvent)=>{
       if(quiz||account||help||settings||detailsOpen)return;
@@ -255,8 +261,13 @@ export default function App({clerk=false}:{clerk?:boolean}){
       const keyEl=keyboardRef.current?.querySelector<HTMLElement>('[data-key="'+normalizedExpected+'"]')??null;
       animateKeyPress(keyEl);
       if(index===word.length-1){
-        learner.current?.record({kind:"word",word,correct:!hadError.current,duration:now-wordStarted.current});
+        const correct=!hadError.current;
+        const duration=now-wordStarted.current;
+        learner.current?.record({kind:"word",word,correct,duration});
+        recentPractice.current=[...recentPractice.current,{word,correct,duration}].slice(-30);
+        const nextTotal=p.totalPracticeWords+1;
         setP(current=>({...current,totalPracticeWords:current.totalPracticeWords+1}));
+        if(nextTotal%10===0)void runPracticeCoach();
         hadError.current=false;
         const next=wordQueue.current.shift()??{word:randomWord(skills.current,word),definition:null,isNew:false};
         const advance=()=>{
@@ -276,25 +287,10 @@ export default function App({clerk=false}:{clerk?:boolean}){
     return()=>window.removeEventListener("keydown",onKey);
   },[word,index,quiz,account,help,settings,detailsOpen]);
 
-  useEffect(()=>{
-    if(p.totalPracticeWords===0||p.totalPracticeWords%20!==0)return;
-    if(Date.now()-refineAt.current<120000)return;
-    refineAt.current=Date.now();
-    const run=()=>void quietlyRefineProfile("activeSeconds="+p.activeSeconds+";totalWords="+p.totalPracticeWords+";skills="+JSON.stringify(skills.current),performanceMode);
-    if("requestIdleCallback"in window){
-      (window as any).requestIdleCallback(run,{timeout:8000});
-    }else{
-      globalThis.setTimeout(run,3000);
-    }
-  },[p.totalPracticeWords,performanceMode]);
-
-  useEffect(()=>{if(p.activeSeconds>=1800)setQuiz(true)},[p.activeSeconds]);
-
   const target=nextKey(word,index);
-  const remaining=Math.max(0,1800-p.activeSeconds);
   const percent=word ? Math.min(100,Math.round((index/word.length)*100)) : 0;
   const rows=keyboardStyle==="windows"?WINDOWS_ROWS:MAC_ROWS;
-  const bottom=keyboardStyle==="windows"?WINDOWS_BOTTOM_ROW:MAC_BOTTOM_ROW;
+  const bottom=keyboardStyle==="windows"?(windowsLayout==="copilot"?WINDOWS_COPILOT_BOTTOM_ROW:WINDOWS_BOTTOM_ROW):MAC_BOTTOM_ROW;
 
   function openWordDetails(){
     detailsRequest.current?.abort();
@@ -342,11 +338,11 @@ export default function App({clerk=false}:{clerk?:boolean}){
       <div className="left-controls">
         {clerk?<AccountControl open={()=>setAccount(true)}/>:<button className="outline-action" onClick={()=>setAccount(true)}><UserPlus size={16}/><span>Sign up</span></button>}
       </div>
-      <div className="wordmark"><Keyboard size={18}/><span>Typing-Pro</span></div>
+      <div className="wordmark"><Keyboard size={18}/><span>Typhelper</span></div>
       <div className="right-controls">
         <button className="icon-action" aria-label="Help" onClick={()=>setHelp(true)}><CircleHelp size={17}/></button>
         <button className="icon-action" aria-label="Settings" onClick={()=>setSettings(true)}><Settings2 size={17}/></button>
-        <div className="next-check"><Clock3 size={14}/><span>{remaining?formatTime(remaining):"check-in ready"}</span></div>
+        <div className="next-check"><Clock3 size={14}/><span>check-in anytime</span></div>
       </div>
     </header>
 
@@ -379,7 +375,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
             :<Counter value={p.totalPracticeWords} places={counterPlaces(p.totalPracticeWords)} fontSize={43} padding={0} gap={1} horizontalPadding={0} textColor="#202124" fontWeight={760} gradientHeight={0}/>}
         </div><div className="muted">completed this device</div></div>
         <div className="mini-card"><div className="mini-label">Live WPM</div><div className="big-stat stat-counter"><Counter value={liveWpm} places={counterPlaces(liveWpm)} fontSize={43} padding={0} gap={1} horizontalPadding={0} textColor="#202124" fontWeight={760} gradientHeight={0}/></div><div className="muted">current typing speed</div></div>
-        <div className="mini-card"><div className="mini-label">Check-in</div><div className="check-row"><span>{remaining?formatTime(remaining):"Ready"}</span><Clock3 size={15}/></div><button className="solid-action" onClick={()=>setQuiz(true)}><span>Take check-in</span><ChevronRight size={16}/></button></div>
+        <div className="mini-card"><div className="mini-label">Check-in</div><div className="check-row"><span>Ready</span><Clock3 size={15}/></div><button className="solid-action" onClick={()=>setQuiz(true)}><span>Take check-in</span><ChevronRight size={16}/></button></div>
         <div className="mini-card privacy-card"><LockKeyhole size={16}/><div><strong>Private by default</strong><p>Your typing stays on this device unless you choose to sync an account.</p></div></div>
       </aside>
     </main>
@@ -390,6 +386,8 @@ export default function App({clerk=false}:{clerk?:boolean}){
       close={()=>setSettings(false)}
       keyboardStyle={keyboardStyle}
       setKeyboardStyle={setKeyboardStyle}
+      windowsLayout={windowsLayout}
+      setWindowsLayout={setWindowsLayout}
       physicalKeyboard={physicalKeyboard}
       setPhysicalKeyboard={setPhysicalKeyboard}
       hasWebHID={hasWebHID()}
@@ -404,7 +402,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
       setFingerColors={setFingerColors}
     />}
     {detailsOpen&&<WordDetailsModal word={word} details={wordDetails} loading={detailsLoading} error={detailsError} close={closeWordDetails}/>}
-    {quiz&&<QuizModal skillMap={p.skillMap} onClose={()=>setQuiz(false)} onRecord={event=>learner.current?.record(event)} onFinish={(result,targetText,answer)=>finishQuiz(result,targetText,answer)}/>}
+    {quiz&&<QuizModal skillMap={p.skillMap} performanceMode={performanceMode} onClose={()=>setQuiz(false)} onRecord={event=>learner.current?.record(event)} onFinish={(result,targetText,answer)=>finishQuiz(result,targetText,answer)}/>}
   </div>
 }
 
@@ -413,17 +411,19 @@ export function ComputerRequiredScreen(){
     <div className="computer-only-card">
       <div className="computer-only-icon"><Laptop size={28}/></div>
       <div className="modal-step">Computer required</div>
-      <h1>Open Typing-Pro on a computer</h1>
-      <p>Typing-Pro is built for a physical computer keyboard and currently supports desktop and laptop computers only.</p>
+      <h1>Open Typhelper on a computer</h1>
+      <p>Typhelper is built for a physical computer keyboard and currently supports desktop and laptop computers only.</p>
       <div className="computer-only-note"><Keyboard size={16}/><span>Come back from a Windows, Mac, Linux, or Chromebook computer to start practicing.</span></div>
     </div>
   </main>
 }
 
-function SettingsModal({close,keyboardStyle,setKeyboardStyle,physicalKeyboard,setPhysicalKeyboard,hasWebHID,connectPhysicalKeyboard,keyboardError,setKeyboardError,performanceMode,setPerformanceMode,visionEnabled,setVisionEnabled,fingerColors,setFingerColors}:{
+function SettingsModal({close,keyboardStyle,setKeyboardStyle,windowsLayout,setWindowsLayout,physicalKeyboard,setPhysicalKeyboard,hasWebHID,connectPhysicalKeyboard,keyboardError,setKeyboardError,performanceMode,setPerformanceMode,visionEnabled,setVisionEnabled,fingerColors,setFingerColors}:{
   close:()=>void;
   keyboardStyle:KeyboardStyle;
   setKeyboardStyle:(value:KeyboardStyle)=>void;
+  windowsLayout:WindowsLayout;
+  setWindowsLayout:(value:WindowsLayout)=>void;
   physicalKeyboard:KeyboardProfile|null;
   setPhysicalKeyboard:(value:KeyboardProfile)=>void;
   hasWebHID:boolean;
@@ -457,6 +457,13 @@ function SettingsModal({close,keyboardStyle,setKeyboardStyle,physicalKeyboard,se
             <div className="settings-choice-pills" role="group" aria-label="Keyboard style">
               <button className={keyboardStyle==="windows"?"settings-pill active":"settings-pill"} onClick={()=>setKeyboardStyle("windows")}>Windows</button>
               <button className={keyboardStyle==="mac"?"settings-pill active":"settings-pill"} onClick={()=>setKeyboardStyle("mac")}>Mac</button>
+            </div>
+          </div>
+          {keyboardStyle==="windows"&&<div className="settings-row compact-row">
+            <div><strong>Windows keyboard layout</strong><span>Legacy uses the Menu key. New uses the Copilot key.</span></div>
+            <div className="settings-choice-pills" role="group" aria-label="Windows keyboard layout">
+              <button className={windowsLayout==="legacy"?"settings-pill active":"settings-pill"} onClick={()=>setWindowsLayout("legacy")}>Legacy</button>
+              <button className={windowsLayout==="copilot"?"settings-pill active":"settings-pill"} onClick={()=>setWindowsLayout("copilot")}>Copilot</button>
             </div>
           </div>
           <label className="simple-settings-toggle">
@@ -498,7 +505,7 @@ function SettingsModal({close,keyboardStyle,setKeyboardStyle,physicalKeyboard,se
             <span><strong>Use paired vision signals</strong><small>Allow your paired Keyboard Vision extension to contribute aggregate gaze or hand-pose signals.</small></span>
             <input type="checkbox" checked={visionEnabled} onChange={event=>setVisionEnabled(event.target.checked)}/>
           </label>
-          <div className="simple-settings-privacy"><LockKeyhole size={15}/><span>Camera access in Typing-Pro is limited to check-ins. Nothing here turns on the camera.</span></div>
+          <div className="simple-settings-privacy"><LockKeyhole size={15}/><span>Camera access in Typhelper is limited to check-ins. Nothing here turns on the camera.</span></div>
         </section>
       </div>
 
@@ -592,38 +599,68 @@ function WordDetailsModal({word,details,loading,error,close}:{word:string;detail
   </div>
 }
 
-function QuizModal({skillMap,onClose,onFinish,onRecord}:{skillMap:Progress["skillMap"];onClose:()=>void;onFinish:(result:QuizResult,target:string,answer:string)=>void;onRecord:(event:{kind:"key";expected:string;actual:string;latency:number}|{kind:"word";word:string;correct:boolean;duration:number})=>void}){
-  const[phase,setPhase]=useState<"intro"|"running"|"result">("intro"),[gaze,setGaze]=useState<GazeState>("unknown"),[paused,setPaused]=useState(false),[answer,setAnswer]=useState(""),[score,setScore]=useState<QuizScore|null>(null),[error,setError]=useState(""),[elapsed,setElapsed]=useState(0);
-  const target=useRef(createQuiz(skillMap)),started=useRef(0),times=useRef<number[]>([]),backspaces=useRef(0),focus=useRef(0),lastKey=useRef(performance.now()),video=useRef<HTMLVideoElement>(null),monitor=useRef<GazeMonitor|null>(null),previous=useRef<GazeState>("unknown"),hadError=useRef(false),finishing=useRef(false),screenRef=useRef<HTMLElement|null>(null);
+function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMap:Progress["skillMap"];performanceMode:PerformanceMode;onClose:()=>void;onFinish:(result:QuizResult,target:string,answer:string)=>void;onRecord:(event:{kind:"key";expected:string;actual:string;latency:number}|{kind:"word";word:string;correct:boolean;duration:number})=>void}){
+  const[phase,setPhase]=useState<"intro"|"running"|"analyzing"|"result">("intro");
+  const[gaze,setGaze]=useState<GazeState>("unknown");
+  const[paused,setPaused]=useState(false);
+  const[answer,setAnswer]=useState("");
+  const[score,setScore]=useState<QuizScore|null>(null);
+  const[error,setError]=useState("");
+  const[cameraStatus,setCameraStatus]=useState<"checking"|"ready"|"permission"|"busy">("checking");
+  const target=useRef(createQuiz(skillMap));
+  const started=useRef(0);
+  const times=useRef<number[]>([]);
+  const backspaces=useRef(0);
+  const focus=useRef(0);
+  const lastKey=useRef(performance.now());
+  const video=useRef<HTMLVideoElement>(null);
+  const monitor=useRef<GazeMonitor|null>(null);
+  const previous=useRef<GazeState>("unknown");
+  const hadError=useRef(false);
+  const finishing=useRef(false);
+  const cameraStream=useRef<MediaStream|null>(null);
+  const screenRef=useRef<HTMLElement|null>(null);
 
   useEffect(()=>{
     const el=screenRef.current;
     if(!el)return;
-    el.animate(
-      [{opacity:0,transform:"translateY(10px)"},{opacity:1,transform:"translateY(0)"}],
-      {duration:420,easing:"cubic-bezier(.22,1,.36,1)"}
-    );
-  },[]);
+    el.animate([{opacity:0,transform:"translateY(10px)"},{opacity:1,transform:"translateY(0)"}],{duration:420,easing:"cubic-bezier(.22,1,.36,1)"});
+  },[phase]);
 
-  useEffect(()=>()=>monitor.current?.stop(video.current||undefined),[]);
+  useEffect(()=>{
+    if(phase!=="intro")return;
+    let cancelled=false;
+    const check=async()=>{
+      try{
+        const permission=await (navigator.permissions as any)?.query?.({name:"camera"});
+        if(cancelled)return;
+        if(permission?.state==="granted"){
+          try{
+            const stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+            if(cancelled){stream.getTracks().forEach(track=>track.stop());return;}
+            cameraStream.current=stream;
+            setCameraStatus("ready");
+          }catch{
+            setCameraStatus("busy");
+          }
+        }else{
+          setCameraStatus("permission");
+        }
+      }catch{
+        setCameraStatus("permission");
+      }
+    };
+    void check();
+    return()=>{cancelled=true};
+  },[phase]);
+
+  useEffect(()=>()=>{monitor.current?.stop(video.current||undefined);cameraStream.current?.getTracks().forEach(track=>track.stop())},[]);
 
   useEffect(()=>{
     if(phase!=="running")return;
-    const id=window.setInterval(()=>{if(!paused)setElapsed(value=>value+1)},1000);
-    return()=>window.clearInterval(id);
-  },[phase,paused]);
-
-  useEffect(()=>{
-    if(elapsed>=60&&phase==="running")void finish();
-  },[elapsed,phase]);
-
-  useEffect(()=>{
-    if(phase!=="running")return;
-
     const handleKeyDown=(event:KeyboardEvent)=>{
-      if(paused)return;
+      if(paused||finishing.current)return;
       if(event.ctrlKey||event.metaKey||event.altKey)return;
-
       if(event.key==="Backspace"){
         event.preventDefault();
         if(answer.length>0){
@@ -633,52 +670,53 @@ function QuizModal({skillMap,onClose,onFinish,onRecord}:{skillMap:Progress["skil
         }
         return;
       }
-
-      if(event.key==="Tab"||event.key==="Escape"||event.key==="Enter"||event.key==="ArrowUp"||event.key==="ArrowDown"||event.key==="ArrowLeft"||event.key==="ArrowRight")return;
+      if(event.key==="Tab"||event.key==="Escape"||event.key==="Enter"||event.key.startsWith("Arrow"))return;
       if(event.key.length!==1)return;
-
       event.preventDefault();
       const position=answer.length;
       if(position>=target.current.length)return;
-
       const expected=target.current[position]??"";
       const actual=event.key;
       const now=performance.now();
       const latency=now-lastKey.current;
       lastKey.current=now;
       times.current.push(now);
-
       if(actual!==expected)hadError.current=true;
       onRecord({kind:"key",expected,actual,latency});
-
       const next=answer+actual;
       setAnswer(next);
-
       if(next.length===target.current.length){
         onRecord({kind:"word",word:target.current,correct:!hadError.current,duration:Date.now()-started.current});
         void finish(next);
       }
     };
-
     window.addEventListener("keydown",handleKeyDown);
     return()=>window.removeEventListener("keydown",handleKeyDown);
   },[phase,paused,answer,onRecord]);
 
+  function handleGaze(state:GazeState){
+    setGaze(state);
+    if(state==="keyboard"&&previous.current!=="keyboard"){focus.current+=1;setPaused(true)}
+    if(state==="screen")setPaused(false);
+    previous.current=state;
+  }
+
   async function start(){
     setError("");
     try{
-      const m=new GazeMonitor();monitor.current=m;
-      await m.start(video.current!,state=>{
-        setGaze(state);
-        if(state==="keyboard"&&previous.current!=="keyboard"){focus.current+=1;setPaused(true)}
-        if(state==="screen")setPaused(false);
-        previous.current=state;
-      });
+      const stream=cameraStream.current??await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640},height:{ideal:480}},audio:false});
+      cameraStream.current=stream;
+      const m=new GazeMonitor();
+      monitor.current=m;
+      await m.start(video.current!,handleGaze,stream);
       started.current=Date.now();
       lastKey.current=performance.now();
+      finishing.current=false;
+      setAnswer("");
       setPhase("running");
     }catch(e){
-      setError(e instanceof Error?e.message:"Camera permission was denied.");
+      setCameraStatus("busy");
+      setError(e instanceof Error?e.message:"Camera could not be started.");
     }
   }
 
@@ -687,96 +725,72 @@ function QuizModal({skillMap,onClose,onFinish,onRecord}:{skillMap:Progress["skil
     finishing.current=true;
     monitor.current?.stop(video.current||undefined);
     const local=scoreQuiz(target.current,finalAnswer,started.current,times.current,backspaces.current,focus.current);
-    const f=local.stats;
-    const features=[
-      Math.max(0,Math.min(1,f.accuracy)),
-      Math.min(1,f.wpm/75),
-      f.consistency,
-      Math.max(0,1-f.backspaceRate*1.35),
-      Math.max(0,1-focus.current/6),
-      Math.max(0,f.consistency*(1-f.latencyJitter*.35)),
-      Math.max(0,1-Math.max(0,f.avgLatencyMs-85)/280),
-      Math.max(0,1-f.errorRate*1.2)
-    ];
-    const nn=await scoreWebNN(features);
-    const final={...local,score:nn.score,backend:nn.backend};
-    setScore(final);
+    setPhase("analyzing");
+    const ai=await analyzeQuiz({stats:local.stats as unknown as Record<string,unknown>,focusPauses:local.focusPauses,target:target.current,answer:finalAnswer},performanceMode);
+    let aiScore=ai.score;
+    let backend=ai.backend==="local"?"Local AI":ai.backend==="cloud"?"Cloud AI":"Fallback scoring";
+    if(ai.backend==="fallback"){
+      const fallback=await scoreWebNN([
+        local.stats.accuracy,
+        Math.min(1,local.stats.wpm/75),
+        local.stats.consistency,
+        Math.max(0,1-local.stats.backspaceRate*1.35),
+        Math.max(0,1-focus.current/6),
+        Math.max(0,local.stats.consistency*(1-local.stats.latencyJitter*.35)),
+        Math.max(0,1-Math.max(0,local.stats.avgLatencyMs-85)/280),
+        Math.max(0,1-local.stats.errorRate*1.2)
+      ]);
+      aiScore=fallback.score;
+      backend=fallback.backend;
+    }
+    const final={...local,score:aiScore,backend};
+    const tips=ai.backend==="fallback"?(local.tips):(ai.tips.length?ai.tips:local.tips);
+    setScore({...final,tips});
     setPhase("result");
     onFinish({id:crypto.randomUUID(),createdAt:Date.now(),score:final.score,stats:final.stats,focusPauses:final.focusPauses},target.current,finalAnswer);
   }
 
+  if(phase==="analyzing")return <main className="checkin-page checkin-result-page" ref={screenRef}><header className="checkin-header"><div><div className="modal-step">Analyzing check-in</div><h1>Your typing results are being prepared</h1></div></header><section className="checkin-result-shell"><div className="checkin-analysis-state"><div className="analysis-spinner"></div><strong>Analyzing your typing</strong><span>{performanceMode==="max"?"Using on-device AI when available.":performanceMode==="balanced"?"Choosing cloud or on-device AI based on your settings and hardware.":"Using cloud AI for the analysis."}</span></div></section></main>;
+
   if(phase==="result"&&score)return <main className="checkin-page checkin-result-page" ref={screenRef}>
-    <header className="checkin-header">
-      <div>
-        <div className="modal-step">Check-in complete</div>
-        <h1>Your typing check-in</h1>
-      </div>
-      <button className="icon-action" onClick={onClose} aria-label="Close check-in"><X size={17}/></button>
-    </header>
+    <header className="checkin-header"><div><div className="modal-step">Check-in complete</div><h1>Your typing results</h1></div><button className="icon-action" onClick={onClose} aria-label="Close check-in"><X size={17}/></button></header>
     <section className="checkin-result-shell">
       <div className="checkin-score"><span>Score</span><strong>{score.score}</strong><small>/100</small></div>
-      <div className="result-metrics">
-        <div><span>WPM</span><strong>{score.stats.wpm.toFixed(0)}</strong></div>
-        <div><span>Accuracy</span><strong>{(score.stats.accuracy*100).toFixed(0)}%</strong></div>
-        <div><span>Consistency</span><strong>{(score.stats.consistency*100).toFixed(0)}%</strong></div>
-        <div><span>Focus pauses</span><strong>{score.focusPauses}</strong></div>
-      </div>
-      <div className="result-list"><div className="mini-label">Things to work on</div>{score.tips.map(item=><div className="tip" key={item}><Check size={14}/><span>{item}</span></div>)}</div>
-      <div className="checkin-result-footer"><span>scored locally with {score.backend}</span><button className="solid-action" onClick={onClose}>Back to practice</button></div>
+      <div className="result-metrics"><div><span>WPM</span><strong>{score.stats.wpm.toFixed(0)}</strong></div><div><span>Accuracy</span><strong>{(score.stats.accuracy*100).toFixed(0)}%</strong></div><div><span>Consistency</span><strong>{(score.stats.consistency*100).toFixed(0)}%</strong></div><div><span>Focus pauses</span><strong>{score.focusPauses}</strong></div></div>
+      <div className="result-list"><div className="mini-label">Things to improve</div>{score.tips.map(item=><div className="tip" key={item}><Check size={14}/><span>{item}</span></div>)}</div>
+      <div className="checkin-result-footer"><span>analyzed with {score.backend}</span><button className="solid-action" onClick={onClose}>Back to practice</button></div>
     </section>
   </main>;
 
   if(phase==="intro")return <main className="checkin-page checkin-intro-page" ref={screenRef}>
-    <header className="checkin-header">
-      <div>
-        <div className="modal-step">60 second check-in</div>
-        <h1>Let's check your typing</h1>
-      </div>
-      <button className="icon-action" onClick={onClose} aria-label="Close check-in"><X size={17}/></button>
-    </header>
+    <header className="checkin-header"><div><div className="modal-step">Typing check-in</div><h1>Let’s check your typing</h1></div><button className="icon-action" onClick={onClose} aria-label="Close check-in"><X size={17}/></button></header>
     <section className="checkin-intro-shell">
       <div className="checkin-intro-copy">
         <div className="checkin-icon"><Keyboard size={24}/></div>
-        <h2>Type normally. Nothing to click.</h2>
-        <p>Typing-Pro will watch the keyboard you already use and measure speed, accuracy, consistency, and screen focus for 60 seconds.</p>
-        <div className="checkin-note"><Camera size={15}/><span>Camera access is only used during this check-in to detect when you look down at the keyboard.</span></div>
+        <h2>Finish when you’re done.</h2>
+        <p>Type the passage at your own pace. When you finish, Typhelper analyzes your speed, accuracy, consistency, corrections, and screen focus.</p>
+        <div className="checkin-note"><Camera size={15}/><span>{cameraStatus==="ready"?"Your camera is ready for the check-in.":cameraStatus==="busy"?"The camera is unavailable or already in use.":"Camera permission is needed for focus detection."}</span></div>
         {error&&<div className="permission-error">{error}</div>}
-        <div className="checkin-actions"><button className="outline-action" onClick={onClose}>Not now</button><button className="solid-action" onClick={start}>Allow camera & start <ChevronRight size={16}/></button></div>
+        <div className="checkin-actions"><button className="outline-action" onClick={onClose}>Not now</button><button className="solid-action" onClick={start}>{cameraStatus==="ready"?"Start check-in":"Allow camera & start"} <ChevronRight size={16}/></button></div>
       </div>
-      <div className="checkin-intro-preview">
-        <div className="checkin-preview-top"><span>What happens next</span><Clock3 size={15}/></div>
-        <div className="checkin-step"><strong>01</strong><span>Camera starts with your permission.</span></div>
-        <div className="checkin-step"><strong>02</strong><span>Type the text shown on screen using your physical keyboard.</span></div>
-        <div className="checkin-step"><strong>03</strong><span>The check-in ends automatically after 60 seconds.</span></div>
-      </div>
+      <div className="checkin-intro-preview"><div className="checkin-preview-top"><span>What happens</span><Camera size={15}/></div><div className="checkin-step"><strong>01</strong><span>Typhelper checks whether camera permission is already ready.</span></div><div className="checkin-step"><strong>02</strong><span>Type the full passage with your physical keyboard.</span></div><div className="checkin-step"><strong>03</strong><span>When you finish, AI analyzes the result and gives you improvements.</span></div></div>
     </section>
   </main>;
 
   return <main className="checkin-page checkin-running-page" ref={screenRef}>
-    <header className="checkin-header">
-      <div>
-        <div className="modal-step">Typing check-in</div>
-        <h1>Type the text below</h1>
-      </div>
-      <button className="quiet-action" onClick={()=>void finish()}>Finish</button>
-    </header>
+    <header className="checkin-header"><div><div className="modal-step">Typing check-in</div><h1>Type the passage below</h1></div><button className="quiet-action" onClick={()=>void finish()}>Finish check-in</button></header>
     <section className="checkin-running-shell">
-      <div className="checkin-live-bar">
-        <span>{paused?"Paused · look back at the screen":gaze==="screen"?"Screen focus":"Checking focus"}</span>
-        <strong>00:{String(Math.min(60,elapsed)).padStart(2,"0")}</strong>
-      </div>
+      <div className="checkin-live-bar"><span>{paused?"Paused · look back at the screen":gaze==="screen"?"Screen focus":"Checking focus"}</span><strong>{answer.length} / {target.current.length}</strong></div>
       <div className="quiz-target checkin-target" aria-live="polite">{[...target.current].map((char,i)=><span key={i} className={i<answer.length?(answer[i]===char?"typed":"miss"):""}>{char}</span>)}</div>
-      <div className="checkin-instruction">{paused?"Look back at the screen to continue":"Start typing on your physical keyboard."}</div>
+      <div className="checkin-instruction">{paused?"Look back at the screen to continue":"Keep typing until the passage is complete."}</div>
       <div className="checkin-lower">
         <div className="camera-preview checkin-camera"><video ref={video} muted playsInline/><div><Camera size={15}/><span>{paused?"check-in paused":"focus assist on"}</span></div></div>
-        <div className="checkin-side-info">
-          <div><Keyboard size={16}/><span>Use your normal physical keyboard.</span></div>
-          <div><Check size={16}/><span>Backspace is supported. Your keystrokes are used only for this check-in.</span></div>
-        </div>
+        <div className="checkin-side-info"><div><Keyboard size={16}/><span>Use your normal physical keyboard.</span></div><div><Check size={16}/><span>Backspace is supported. Your keystrokes are used only for this check-in.</span></div><div><Gauge size={16}/><span>There is no time limit.</span></div></div>
       </div>
     </section>
   </main>;
 }
+
 function counterPlaces(value:number){
   const digits=Math.max(1,Math.floor(Math.abs(value)).toString().length);
   return Array.from({length:digits},(_,index)=>10**(digits-index-1));

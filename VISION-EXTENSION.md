@@ -1,6 +1,6 @@
 # Keyboard Vision pairing
 
-Typing-Pro can consume aggregate signals from the Keyboard Vision extension without receiving camera frames.
+Typhelper can consume aggregate signals from the Keyboard Vision extension without receiving camera frames.
 
 The website listens for either:
 

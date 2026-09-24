@@ -1,6 +1,6 @@
-# Typing-Pro
+# Typhelper
 
-Typing-Pro is a privacy-first typing coach for people who want to build touch-typing habits without needing an account.
+Typhelper is a privacy-first typing coach for people who want to build touch-typing habits without needing an account.
 
 ## Built for this project
 

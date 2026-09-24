@@ -112,7 +112,7 @@ async function findAlternateOf(word){
   try{
     const response=await fetchWithTimeout(
       "https://en.wiktionary.org/w/api.php?action=parse&format=json&formatversion=2&prop=wikitext&redirects=true&origin=*&page="+encodeURIComponent(word),
-      {headers:{accept:"application/json","user-agent":"Typing-Pro/0.2 (word-form-detection)"}},
+      {headers:{accept:"application/json","user-agent":"Typhelper/0.2 (word-form-detection)"}},
       SECONDARY_TIMEOUT_MS
     );
     if(!response.ok)return null;
@@ -131,7 +131,7 @@ async function findDefinitions(word){
     if(response.ok){const defs=englishDictionaryDefinitions(await response.json().catch(()=>null));if(defs.length)return defs;}
   }catch{}
   try{
-    const response=await fetchWithTimeout("https://en.wiktionary.org/api/rest_v1/page/definition/"+encodeURIComponent(word)+"?redirect=true",{headers:{accept:"application/json","user-agent":"Typing-Pro/0.2 (word-details-lookup)"}},SECONDARY_TIMEOUT_MS);
+    const response=await fetchWithTimeout("https://en.wiktionary.org/api/rest_v1/page/definition/"+encodeURIComponent(word)+"?redirect=true",{headers:{accept:"application/json","user-agent":"Typhelper/0.2 (word-details-lookup)"}},SECONDARY_TIMEOUT_MS);
     if(response.ok){const defs=wiktionaryDefinitions(await response.json().catch(()=>null));if(defs.length)return defs;}
   }catch{}
   try{
