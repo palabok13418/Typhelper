@@ -130,7 +130,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
     if("requestIdleCallback"in window){
       (window as any).requestIdleCallback(run,{timeout:4000});
     }else{
-      window.setTimeout(run,1000);
+      globalThis.setTimeout(run,1000);
     }
   },[p.activeSeconds,p.totalPracticeWords]);
 
