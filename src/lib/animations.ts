@@ -30,3 +30,8 @@ export function animatePanel(el:Element|null){
   if(!el)return;
   animate(el,{opacity:[0,1],y:[8,0],duration:300,ease:"outQuad"});
 }
+
+export function animateDefinition(el:Element|null){
+  if(!el)return;
+  animate(el,{opacity:[0,1],y:[7,0],scale:[.98,1],duration:260,ease:"outQuad"});
+}
