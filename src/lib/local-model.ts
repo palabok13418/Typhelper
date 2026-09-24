@@ -1,8 +1,12 @@
 import{probeDeviceRuntime}from"./device-runtime";
+import{refineProfileInCloud}from"./cloud-model";
 
 export async function quietlyRefineProfile(summary:string){
   const profile=await probeDeviceRuntime();
-  if(!profile.localModelAllowed)return{profile,backend:"cloud",result:null};
+  if(!profile.localModelAllowed){
+    const result=await refineProfileInCloud(summary);
+    return{profile,backend:"cloud",result};
+  }
 
   try{
     const w:any=await import("@mlc-ai/web-llm");
