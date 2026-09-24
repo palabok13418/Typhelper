@@ -35,3 +35,16 @@ export function animateDefinition(el:Element|null){
   if(!el)return;
   animate(el,{opacity:[0,1],y:[7,0],scale:[.98,1],duration:260,ease:"outQuad"});
 }
+
+export function animateWordExit(el:Element|null,onComplete:()=>void){
+  if(!el){onComplete();return;}
+  const letters=el.querySelectorAll(".word-char");
+  animate(letters,{
+    opacity:[1,0],
+    y:[0,-8],
+    duration:130,
+    delay:stagger(8),
+    ease:"inQuad",
+    complete:onComplete
+  });
+}
