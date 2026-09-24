@@ -53,9 +53,11 @@ export async function probeDeviceRuntime():Promise<DeviceRuntimeProfile>{
   const cores=typeof nav.hardwareConcurrency==="number"?nav.hardwareConcurrency:null;
   const memory=typeof nav.deviceMemory==="number"?nav.deviceMemory:null;
   const localModelAllowed=(
-    (webnn&&(cores===null||cores>=4)&&(memory===null||memory>=4))||
-    (gpu.available&&(cores===null||cores>=4)&&(memory===null||memory>=4))
-  )&&benchmarkMs<45;
+    (webnn||gpu.available)&&
+    (cores===null||cores>=4)&&
+    (memory===null||memory>=4)&&
+    benchmarkMs<45
+  );
   const preferredBackend:RuntimeBackend=webnn&&localModelAllowed?"webnn":gpu.available&&localModelAllowed?"webgpu":wasm&&benchmarkMs<85?"wasm":"cloud";
   const confidence=Math.min(1,
     .35+
