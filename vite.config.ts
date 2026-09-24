@@ -9,6 +9,5 @@ export default defineConfig(({ mode }) => {
     define:{
       "import.meta.env.CLERK_PUBLISHABLE_KEY":JSON.stringify(env.CLERK_PUBLISHABLE_KEY??"")
     },
-    optimizeDeps:{exclude:["@mlc-ai/web-llm"]}
   };
 });
