@@ -362,7 +362,6 @@ export default function App({clerk=false}:{clerk?:boolean}){
       setKeyboardError={setKeyboardError}
       performanceMode={performanceMode}
       setPerformanceMode={setPerformanceMode}
-      runtimeProfile={runtimeProfile}
       visionEnabled={visionEnabled}
       setVisionEnabled={setVisionEnabled}
       fingerColors={fingerColors}
