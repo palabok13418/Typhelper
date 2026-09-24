@@ -100,10 +100,6 @@ export default function App({clerk=false}:{clerk?:boolean}){
   },[word,index]);
 
   useEffect(()=>{
-    requestAnimationFrame(()=>animateSession(sessionRef.current));
-  },[word,index]);
-
-  useEffect(()=>{
     const currentTarget=nextKey(word,index);
     if(!currentTarget||!stuck)return;
     const key=keyboardRef.current?.querySelector<HTMLElement>('[data-key="'+currentTarget+'"]')??null;
@@ -236,8 +232,8 @@ export default function App({clerk=false}:{clerk?:boolean}){
 
     <main className="workspace" ref={workspaceRef}>
       <section className="practice-area">
-        <div className="session-line" ref={sessionRef}><span>Practice</span><span>{percent}%</span></div>
         <div className="word-stage">
+          <div className="session-line" ref={sessionRef}><span>Practice</span><span>{percent}%</span></div>
           {wordIsNew && definition&&<div className="word-definition" ref={definitionRef} aria-live="polite"><span>meaning</span><strong>{definition}</strong></div>}
           <div className="word" ref={wordRef} aria-live="polite">{[...word].map((char,i)=><span key={i} className={"word-char "+(i<index?"typed":i===index?(wrong?"wrong":"current"):"")}>{char}</span>)}</div>
           <div className="subtle-hint">
