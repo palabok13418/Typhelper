@@ -57,7 +57,7 @@ export async function quietlyRefineProfile(summary:string,mode:PerformanceMode="
   }
 
   balancedRefinementCount+=1;
-  const useDevice=mode==="max"||(mode==="balanced"&&balancedRefinementCount%10>=8);
+  const useDevice=mode==="max"||(mode==="balanced"&&balancedRefinementCount%10>=7);
 
   if(useDevice&&profile.localModelAllowed){
     const result=await refineLocally(summary);
