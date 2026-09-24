@@ -531,8 +531,8 @@ function WordDetailsModal({word,details,loading,error,close}:{word:string;detail
           <div className="details-definition">{details.alternateOfDefinition}</div>
         </section>}
         <section className="details-section">
-          <div className="details-label">Full definition</div>
-          <div className="details-definition">{details.fullDefinition}</div>
+          <div className="details-label">Original dictionary definition</div>
+          <div className="details-definition">{details.originalDefinition}</div>
         </section>
         <section className="details-grid">
           <div className="details-section">
