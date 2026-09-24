@@ -9,7 +9,7 @@ import{createQuiz,scoreQuiz,type QuizScore}from"./lib/quiz";
 import{PersonalModel}from"./lib/personal-model";
 import{VisionBridge}from"./lib/vision-bridge";
 import{FUNCTION_ROW,MAC_BOTTOM_ROW,MAC_ROWS,WINDOWS_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
-import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateWord,animateWordExit}from"./lib/animations";
+import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateSession,animateWord,animateWordExit}from"./lib/animations";
 import{quietlyRefineProfile}from"./lib/local-model";
 import{fetchPracticeWord,type PracticeWord}from"./lib/word-api";
 import type{GazeState,Progress,QuizResult}from"./types";
@@ -22,7 +22,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const[index,setIndex]=useState(0);
   const[wrong,setWrong]=useState(false);
   const[stuck,setStuck]=useState(false);
-  const[definition,setDefinition]=useState<string|null>(null);
+  const[definition,setDefinition]=useState<string|null>(null);\n  const[wordIsNew,setWordIsNew]=useState(false);
   const[account,setAccount]=useState(false);
   const[quiz,setQuiz]=useState(false);
   const[help,setHelp]=useState(false);
@@ -38,7 +38,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const wordStarted=useRef(performance.now());
   const hadError=useRef(false);
   const refineAt=useRef(0);
-  const wordRef=useRef<HTMLDivElement>(null);
+  const wordRef=useRef<HTMLDivElement>(null);\n  const sessionRef=useRef<HTMLDivElement>(null);
   const definitionRef=useRef<HTMLDivElement>(null);
   const keyboardRef=useRef<HTMLDivElement>(null);
   const shownWords=useRef<Set<string>>(readShownWords());
@@ -196,7 +196,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
 
   const target=nextKey(word,index);
   const remaining=Math.max(0,1800-p.activeSeconds);
-  const percent=word?Math.round(index/word.length*100):0;
+  const percent=word ? Math.min(100,Math.round((index/word.length)*100)) : 0;
   const rows=keyboardStyle==="windows"?WINDOWS_ROWS:MAC_ROWS;
   const bottom=keyboardStyle==="windows"?WINDOWS_BOTTOM_ROW:MAC_BOTTOM_ROW;
 
@@ -224,9 +224,9 @@ export default function App({clerk=false}:{clerk?:boolean}){
 
     <main className="workspace" ref={workspaceRef}>
       <section className="practice-area">
-        <div className="session-line"><span>Practice</span><span>{percent}%</span></div>
+        <div className="session-line" ref={sessionRef}><span>Practice</span><span>{percent}%</span></div>
         <div className="word-stage">
-          {definition&&<div className="word-definition" ref={definitionRef} aria-live="polite"><span>meaning</span><strong>{definition}</strong></div>}
+          {wordIsNew && definition&&<div className="word-definition" ref={definitionRef} aria-live="polite"><span>meaning</span><strong>{definition}</strong></div>}
           <div className="word" ref={wordRef} aria-live="polite">{[...word].map((char,i)=><span key={i} className={"word-char "+(i<index?"typed":i===index?(wrong?"wrong":"current"):"")}>{char}</span>)}</div>
           <div className="subtle-hint">
             {stuck?<><Lightbulb size={15}/><span>press <strong>{target==="space"?"SPACE":target.toUpperCase()}</strong> next</span></>:wrong?<><X size={14}/><span>try that key again</span></>:<span>type the highlighted key</span>}
