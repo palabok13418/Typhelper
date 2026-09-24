@@ -1,5 +1,4 @@
 const RANDOM_WORD_API="https://random-word-api.herokuapp.com/word?number=10";
-const DICTIONARY_API="https://api.dictionaryapi.dev/api/v2/entries/en";
 const DEFINITION_CACHE="typing-pro-definition-cache";
 
 interface DictionaryEntry{
@@ -66,12 +65,9 @@ export async function fetchWordDefinition(word:string,signal?:AbortSignal){
   const cached=readDefinitionCache()[clean];
   if(cached)return cached;
 
-  const endpoints=[
-    "/api/definition?word="+encodeURIComponent(clean),
-    DICTIONARY_API+"/"+encodeURIComponent(clean)
-  ];
+  const endpoint="/api/definition?word="+encodeURIComponent(clean);
 
-  for(const endpoint of endpoints){
+  try{
     try{
       const response=await fetch(endpoint,{signal});
       if(!response.ok)continue;
@@ -79,14 +75,13 @@ export async function fetchWordDefinition(word:string,signal?:AbortSignal){
       const definition=data?.[0]?.meanings?.flatMap(meaning=>meaning.definitions??[])
         .map(item=>item.definition?.trim())
         .find(Boolean);
-      if(definition){
-        const compact=compactDefinition(definition);
-        writeDefinitionCache(clean,compact);
-        return compact;
-      }
-    }catch{
-      // Try the next source.
+    if(definition){
+      const compact=compactDefinition(definition);
+      writeDefinitionCache(clean,compact);
+      return compact;
     }
+  }catch{
+    return null;
   }
 
   return null;
