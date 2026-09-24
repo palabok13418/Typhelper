@@ -161,7 +161,7 @@ export async function fetchWordDetails(word:string,signal?:AbortSignal):Promise<
       if(signal.aborted)return null;
       signal.addEventListener("abort",abortFromParent,{once:true});
     }
-    const timer=window.setTimeout(()=>controller.abort(),6000);
+    const timer=window.setTimeout(()=>controller.abort(),8000);
     try{
       const response=await fetch("/api/word-details?word="+encodeURIComponent(clean)+"&mode=details",{signal:controller.signal});
       if(!response.ok)return null;
