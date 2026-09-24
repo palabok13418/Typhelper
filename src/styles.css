@@ -32,9 +32,9 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
   display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:26px;align-items:center
 }
 .practice-area{min-height:690px;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.session-line{width:min(790px,100%);display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-bottom:12px}
+.session-line{position:absolute;top:0;left:0;right:0;width:auto;display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin:0;will-change:transform}
 .word-stage{
-  width:min(790px,100%);min-height:245px;display:flex;flex-direction:column;
+  position:relative;width:min(790px,100%);min-height:245px;display:flex;flex-direction:column;
   align-items:center;justify-content:center;transform:translateY(-20px)
 }
 .word-definition{
