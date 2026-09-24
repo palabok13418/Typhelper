@@ -88,8 +88,8 @@ export default async function handler(request,response){
       const data=await upstream.json().catch(()=>null);
       const definition=extractDictionaryDefinition(data);
       if(definition){
-        response.status(200).json(dictionaryResponse(word,definition));
         response.setHeader("cache-control","public, s-maxage=86400, stale-while-revalidate=604800");
+        response.status(200).json(dictionaryResponse(word,definition));
         return;
       }
     }
