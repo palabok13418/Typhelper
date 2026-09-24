@@ -1,4 +1,4 @@
-const RANDOM_WORD_API="https://random-word-api.herokuapp.com/word?number=8";
+const RANDOM_WORD_API="https://random-word-api.herokuapp.com/word?number=10";
 const DICTIONARY_API="https://api.dictionaryapi.dev/api/v2/entries/en";
 const DEFINITION_CACHE="typing-pro-definition-cache";
 
@@ -55,7 +55,9 @@ async function fetchRandomCandidates(signal?:AbortSignal){
   if(!response.ok)throw new Error("Random Word API request failed");
   const data=await response.json();
   if(!Array.isArray(data))throw new Error("Random Word API returned invalid data");
-  return data.map(value=>typeof value==="string"?cleanWord(value):null).filter((value):value is string=>Boolean(value));
+  return data
+    .map(value=>typeof value==="string"?cleanWord(value):null)
+    .filter((value):value is string=>Boolean(value));
 }
 
 export async function fetchWordDefinition(word:string,signal?:AbortSignal){
@@ -90,20 +92,26 @@ export async function fetchWordDefinition(word:string,signal?:AbortSignal){
   return null;
 }
 
-export async function fetchPracticeWord(previous:string,shownWords:Set<string>,signal?:AbortSignal):Promise<PracticeWord>{
+export async function fetchPracticeBatch(
+  shownWords:Set<string>,
+  blockedWords:Set<string>,
+  signal?:AbortSignal
+):Promise<PracticeWord[]>{
   try{
     const candidates=await fetchRandomCandidates(signal);
-    const unique=candidates.filter(word=>word!==previous);
-    const unseen=unique.filter(word=>!shownWords.has(word));
-    const word=unseen[0]??unique[0]??candidates[0];
-    if(word){
-      const isNew=!shownWords.has(word);
-      const definition=isNew?await fetchWordDefinition(word,signal):null;
-      return{word,definition,isNew};
-    }
-  }catch{
-    // The static learner vocabulary remains the offline fallback.
-  }
+    const unique=[...new Set(candidates)].filter(word=>!blockedWords.has(word));
+    const selected=unique.slice(0,10);
 
-  return{word:previous||"type",definition:null,isNew:false};
+    const results=await Promise.all(
+      selected.map(async word=>({
+        word,
+        definition:await fetchWordDefinition(word,signal),
+        isNew:!shownWords.has(word)
+      }))
+    );
+
+    return results;
+  }catch{
+    return [];
+  }
 }
