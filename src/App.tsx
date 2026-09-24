@@ -544,7 +544,7 @@ function WordDetailsModal({word,details,loading,error,close}:{word:string;detail
 
 function QuizModal({skillMap,onClose,onFinish,onRecord}:{skillMap:Progress["skillMap"];onClose:()=>void;onFinish:(result:QuizResult,target:string,answer:string)=>void;onRecord:(event:{kind:"key";expected:string;actual:string;latency:number}|{kind:"word";word:string;correct:boolean;duration:number})=>void}){
   const[phase,setPhase]=useState<"intro"|"running"|"result">("intro"),[gaze,setGaze]=useState<GazeState>("unknown"),[paused,setPaused]=useState(false),[answer,setAnswer]=useState(""),[score,setScore]=useState<QuizScore|null>(null),[error,setError]=useState(""),[elapsed,setElapsed]=useState(0);
-  const target=useRef(createQuiz(skillMap)),started=useRef(0),times=useRef<number[]>([]),backspaces=useRef(0),focus=useRef(0),lastKey=useRef(performance.now()),video=useRef<HTMLVideoElement>(null),monitor=useRef<GazeMonitor|null>(null),previous=useRef<GazeState>("unknown"),hadError=useRef(false),screenRef=useRef<HTMLDivElement>(null);
+  const target=useRef(createQuiz(skillMap)),started=useRef(0),times=useRef<number[]>([]),backspaces=useRef(0),focus=useRef(0),lastKey=useRef(performance.now()),video=useRef<HTMLVideoElement>(null),monitor=useRef<GazeMonitor|null>(null),previous=useRef<GazeState>("unknown"),hadError=useRef(false),screenRef=useRef<HTMLElement|null>(null);
 
   useEffect(()=>{
     const el=screenRef.current;
@@ -640,7 +640,7 @@ function QuizModal({skillMap,onClose,onFinish,onRecord}:{skillMap:Progress["skil
     const final={...local,score:nn.score,backend:nn.backend};
     setScore(final);
     setPhase("result");
-    onFinish({id:crypto.randomUUID(),createdAt:Date.now(),score:final.score,stats:final.stats,focusPauses:final.focusPauses},target.current,answer);
+    onFinish({id:crypto.randomUUID(),createdAt:Date.now(),score:final.score,stats:final.stats,focusPauses:final.focusPauses},target.current,finalAnswer);
   }
 
   if(phase==="result"&&score)return <main className="checkin-page checkin-result-page" ref={screenRef}>
