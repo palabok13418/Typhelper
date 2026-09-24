@@ -96,14 +96,19 @@ export async function fetchPracticeBatch(
     const unique=[...new Set(candidates)].filter(word=>!blockedWords.has(word));
     const selected=unique.slice(0,10);
 
-    const results=await Promise.all(
-      selected.map(async word=>({
-        word,
-        definition:await fetchWordDefinition(word,signal),
-        isNew:!shownWords.has(word)
-      }))
-    );
-
+    const results:PracticeWord[]=[];
+    for(let start=0;start<selected.length;start+=3){
+      const group=selected.slice(start,start+3);
+      const chunk=await Promise.all(
+        group.map(async word=>({
+          word,
+          definition:await fetchWordDefinition(word,signal),
+          isNew:!shownWords.has(word)
+        }))
+      );
+      results.push(...chunk);
+      if(signal?.aborted)break;
+    }
     return results;
   }catch{
     return [];
