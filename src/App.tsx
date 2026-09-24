@@ -1,5 +1,5 @@
 import{SignInButton,SignUpButton,UserButton,useUser}from"@clerk/react";
-import{Activity,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Lightbulb,LockKeyhole,Settings2,UserPlus,X}from"lucide-react";
+import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Lightbulb,LockKeyhole,Settings2,UserPlus,X}from"lucide-react";
 import{useEffect,useRef,useState,type ReactNode}from"react";
 import{load,save}from"./lib/storage";
 import{adaptive,learn,randomWord}from"./lib/typing";
@@ -14,7 +14,7 @@ import{quietlyRefineProfile}from"./lib/local-model";
 import{probeDeviceRuntime,runtimeSummary,type DeviceRuntimeProfile}from"./lib/device-runtime";
 import{connectPhysicalKeyboard,hasWebHID,observeKeyboardKey,readKeyboardProfile,type KeyboardProfile}from"./lib/keyboard-profile";
 import{readPerformanceMode,savePerformanceMode,performanceModeLabel,type PerformanceMode}from"./lib/performance";
-import{fetchPracticeBatch,type PracticeWord}from"./lib/word-api";
+import{fetchPracticeBatch,fetchSimpleDefinition,fetchWordDetails,type PracticeWord,type WordDetails}from"./lib/word-api";
 import type{GazeState,Progress,QuizResult}from"./types";
 
 type KeyboardStyle="windows"|"mac";
@@ -27,6 +27,10 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const[stuck,setStuck]=useState(false);
   const[definition,setDefinition]=useState<string|null>(null);
   const[wordIsNew,setWordIsNew]=useState(false);
+  const[wordDetails,setWordDetails]=useState<WordDetails|null>(null);
+  const[detailsOpen,setDetailsOpen]=useState(false);
+  const[detailsLoading,setDetailsLoading]=useState(false);
+  const[detailsError,setDetailsError]=useState(false);
   const[account,setAccount]=useState(false);
   const[quiz,setQuiz]=useState(false);
   const[help,setHelp]=useState(false);
@@ -53,6 +57,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const shownWords=useRef<Set<string>>(readShownWords());
   const wordQueue=useRef<PracticeWord[]>([]);
   const queueRequest=useRef<AbortController|null>(null);
+  const detailsRequest=useRef<AbortController|null>(null);
   const workspaceRef=useRef<HTMLElement>(null);
 
   useEffect(()=>{skills.current=p.skillMap},[p.skillMap]);
@@ -134,6 +139,16 @@ export default function App({clerk=false}:{clerk?:boolean}){
   },[definition]);
 
   useEffect(()=>{
+    if(!wordIsNew)return;
+    let cancelled=false;
+    void fetchSimpleDefinition(word,definition).then(simple=>{
+      if(cancelled||!simple)return;
+      setDefinition(simple);
+    });
+    return()=>{cancelled=true};
+  },[word,wordIsNew]);
+
+  useEffect(()=>{
     requestAnimationFrame(()=>animateSession(sessionRef.current));
   },[word]);
 
@@ -170,7 +185,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
 
   useEffect(()=>{
     const onKey=(event:KeyboardEvent)=>{
-      if(quiz||account||help||settings)return;
+      if(quiz||account||help||settings||detailsOpen)return;
       if(event.metaKey||event.ctrlKey||event.altKey)return;
       if(event.key==="Backspace"){
         event.preventDefault();
@@ -223,7 +238,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
     };
     window.addEventListener("keydown",onKey);
     return()=>window.removeEventListener("keydown",onKey);
-  },[word,index,quiz,account,help,settings]);
+  },[word,index,quiz,account,help,settings,detailsOpen]);
 
   useEffect(()=>{
     if(p.totalPracticeWords===0||p.totalPracticeWords%20!==0)return;
@@ -244,6 +259,35 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const percent=word ? Math.min(100,Math.round((index/word.length)*100)) : 0;
   const rows=keyboardStyle==="windows"?WINDOWS_ROWS:MAC_ROWS;
   const bottom=keyboardStyle==="windows"?WINDOWS_BOTTOM_ROW:MAC_BOTTOM_ROW;
+
+  function openWordDetails(){
+    detailsRequest.current?.abort();
+    const controller=new AbortController();
+    detailsRequest.current=controller;
+    setDetailsOpen(true);
+    setDetailsLoading(true);
+    setDetailsError(false);
+    setWordDetails(null);
+    void fetchWordDetails(word,controller.signal).then(result=>{
+      if(controller.signal.aborted)return;
+      setWordDetails(result);
+      setDetailsLoading(false);
+      setDetailsError(!result);
+    }).catch(()=>{
+      if(controller.signal.aborted)return;
+      setDetailsLoading(false);
+      setDetailsError(true);
+    }).finally(()=>{
+      if(detailsRequest.current===controller)detailsRequest.current=null;
+    });
+  }
+
+  function closeWordDetails(){
+    detailsRequest.current?.abort();
+    detailsRequest.current=null;
+    setDetailsOpen(false);
+    setDetailsLoading(false);
+  }
 
   function finishQuiz(result:QuizResult,targetText:string,answer:string){
     active.current=0;
@@ -271,7 +315,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
       <section className="practice-area">
         <div className="word-stage">
           <div className="session-line" ref={sessionRef}><span>Practice</span><span>{percent}%</span></div>
-          {wordIsNew && definition&&<div className="word-definition" ref={definitionRef} aria-live="polite"><span>meaning</span><strong>{definition}</strong></div>}
+          {wordIsNew && definition&&<button type="button" className="word-definition" ref={definitionRef} aria-label={"Open full meaning for "+word} onClick={openWordDetails}><span>meaning</span><strong>{definition}</strong></button>}
           <div className="word" ref={wordRef} aria-live="polite">{[...word].map((char,i)=><span key={i} className={"word-char "+(i<index?"typed":i===index?(wrong?"wrong":"current"):"")}>{char}</span>)}</div>
           <div className="subtle-hint">
             {stuck?<><Lightbulb size={15}/><span>press <strong>{target==="space"?"SPACE":target.toUpperCase()}</strong> next</span></>:wrong?<><X size={14}/><span>try that key again</span></>:<span>type the highlighted key</span>}
@@ -316,6 +360,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
       <label className="toggle-row"><span><strong>Use paired vision signals</strong><small>Accept aggregate gaze or hand-pose signals from the Keyboard Vision extension you paired yourself.</small></span><input type="checkbox" checked={visionEnabled} onChange={event=>setVisionEnabled(event.target.checked)}/></label>
       <div className="setting-note"><LockKeyhole size={14}/><span>Camera access for Typing-Pro itself is limited to check-ins.</span></div>
     </SimpleModal>}
+    {detailsOpen&&<WordDetailsModal word={word} details={wordDetails} loading={detailsLoading} error={detailsError} close={closeWordDetails}/>}
     {quiz&&<QuizModal skillMap={p.skillMap} onClose={()=>setQuiz(false)} onRecord={event=>learner.current?.record(event)} onFinish={(result,targetText,answer)=>finishQuiz(result,targetText,answer)}/>}
   </div>
 }
@@ -346,6 +391,48 @@ function SimpleModal({title,icon,close,children}:{title:string;icon:ReactNode;cl
   const modal=useRef<HTMLDivElement>(null);
   useEffect(()=>animateModal(modal.current),[]);
   return <div className="overlay"><div className="account-modal" ref={modal}><div className="modal-top"><div><div className="modal-icon">{icon}</div><h2>{title}</h2></div><button className="icon-action" onClick={close} aria-label="Close"><X size={17}/></button></div>{children}<div className="modal-actions"><button className="solid-action" onClick={close}>Done</button></div></div></div>
+}
+
+function WordDetailsModal({word,details,loading,error,close}:{word:string;details:WordDetails|null;loading:boolean;error:boolean;close:()=>void}){
+  const modal=useRef<HTMLDivElement>(null);
+  useEffect(()=>animateModal(modal.current),[]);
+  return <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="word-details-title">
+    <div className="details-modal" ref={modal}>
+      <div className="modal-top">
+        <div>
+          <div className="modal-icon"><BookOpenText size={20}/></div>
+          <div className="modal-step">Word meaning</div>
+          <h2 id="word-details-title">{word}</h2>
+        </div>
+        <button className="icon-action" onClick={close} aria-label="Close"><X size={17}/></button>
+      </div>
+      {loading&&<div className="details-loading">Loading the full meaning…</div>}
+      {error&&<div className="permission-error">The full word details could not be loaded. The short meaning can still be used.</div>}
+      {details&&<>
+        <section className="details-section">
+          <div className="details-label">Full definition</div>
+          <div className="details-definition">{details.fullDefinition}</div>
+        </section>
+        <section className="details-grid">
+          <div className="details-section">
+            <div className="details-label">Synonyms</div>
+            <div className="details-chips">{details.synonyms.length?details.synonyms.map(item=><span className="details-chip" key={item}>{item}</span>):<span className="details-empty">None found</span>}</div>
+          </div>
+          <div className="details-section">
+            <div className="details-label">Antonyms</div>
+            <div className="details-chips">{details.antonyms.length?details.antonyms.map(item=><span className="details-chip" key={item}>{item}</span>):<span className="details-empty">None found</span>}</div>
+          </div>
+        </section>
+        <section className="details-section">
+          <div className="details-label">Example sentences</div>
+          <div className="details-examples">
+            {(details.examples.length?details.examples:["Example sentences are not available right now.","Try the word in a sentence of your own."]).map((item,index)=><div className="details-example" key={item}><span>{index+1}</span><p>{item}</p></div>)}
+          </div>
+        </section>
+      </>}
+      <div className="modal-actions"><button className="solid-action" onClick={close}>Done</button></div>
+    </div>
+  </div>
 }
 
 function QuizModal({skillMap,onClose,onFinish,onRecord}:{skillMap:Progress["skillMap"];onClose:()=>void;onFinish:(result:QuizResult,target:string,answer:string)=>void;onRecord:(event:{kind:"key";expected:string;actual:string;latency:number}|{kind:"word";word:string;correct:boolean;duration:number})=>void}){
