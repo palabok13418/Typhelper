@@ -18,10 +18,10 @@ function cleanWord(value:string){
 
 function compactDefinition(value:string){
   const cleaned=value
-    .replace(/([^)]*\)/g,"")
-    .replace(/[[^\]]*\]/g,"")
+    .replace(/\([^)]*\)/g,"")
+    .replace(/\[[^\]]*\]/g,"")
     .split(";")[0]
-    .replace(/s+/g," ")
+    .replace(/\s+/g," ")
     .trim();
 
   const words=cleaned.split(" ").filter(Boolean);
