@@ -44,13 +44,6 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const wordStarted=useRef(performance.now());
   const hadError=useRef(false);
   const refineAt=useRef(0);
-  const refining=useRef(false);
-  const wordState=useRef(word);
-  const indexState=useRef(index);
-  const quizState=useRef(quiz);
-  const accountState=useRef(account);
-  const helpState=useRef(help);
-  const settingsState=useRef(settings);
   const wordRef=useRef<HTMLDivElement>(null);
   const sessionRef=useRef<HTMLDivElement>(null);
   const definitionRef=useRef<HTMLDivElement>(null);
@@ -62,19 +55,11 @@ export default function App({clerk=false}:{clerk?:boolean}){
 
   useEffect(()=>{skills.current=p.skillMap},[p.skillMap]);
 
-  useEffect(()=>{wordState.current=word},[word]);
-  useEffect(()=>{indexState.current=index},[index]);
-  useEffect(()=>{quizState.current=quiz},[quiz]);
-  useEffect(()=>{accountState.current=account},[account]);
-  useEffect(()=>{helpState.current=help},[help]);
-  useEffect(()=>{settingsState.current=settings},[settings]);
-
   useEffect(()=>{
-    if(!settings||runtimeProfile)return;
     let cancelled=false;
     void probeDeviceRuntime().then(profile=>{if(!cancelled)setRuntimeProfile(profile)}).catch(()=>{});
     return()=>{cancelled=true};
-  },[settings,runtimeProfile]);
+  },[]);
   useEffect(()=>save(p),[p]);
 
   useEffect(()=>{
@@ -181,36 +166,27 @@ export default function App({clerk=false}:{clerk?:boolean}){
 
   useEffect(()=>{
     const onKey=(event:KeyboardEvent)=>{
-      if(quizState.current||accountState.current||helpState.current||settingsState.current)return;
+      if(quiz||account||help||settings)return;
       if(event.metaKey||event.ctrlKey||event.altKey)return;
-
-      const currentWord=wordState.current;
-      const currentIndex=indexState.current;
-
       if(event.key==="Backspace"){
         event.preventDefault();
-        const nextIndex=Math.max(0,currentIndex-1);
-        indexState.current=nextIndex;
-        setIndex(nextIndex);
+        setIndex(value=>Math.max(0,value-1));
         setWrong(false);
         setStuck(false);
         lastActivity.current=Date.now();
         return;
       }
-
       if(event.key.length!==1&&event.key!==" ")return;
-
-      const expected=currentWord[currentIndex]??"";
+      const expected=word[index]??"";
       const actual=event.key;
+      setPhysicalKeyboard(observeKeyboardKey(actual));
       const normalizedExpected=normalizeKey(expected);
       const normalizedActual=normalizeKey(actual);
       const now=performance.now();
       const latency=now-lastKey.current;
       lastKey.current=now;
       lastActivity.current=Date.now();
-
       learner.current?.record({kind:"key",expected,actual,latency});
-
       if(normalizedActual!==normalizedExpected){
         hadError.current=true;
         setWrong(true);
@@ -218,23 +194,17 @@ export default function App({clerk=false}:{clerk?:boolean}){
         animateKeyGuide(targetEl);
         return;
       }
-
       event.preventDefault();
       setWrong(false);
       setStuck(false);
-
       const keyEl=keyboardRef.current?.querySelector<HTMLElement>('[data-key="'+normalizedExpected+'"]')??null;
       animateKeyPress(keyEl);
-
-      if(currentIndex===currentWord.length-1){
-        learner.current?.record({kind:"word",word:currentWord,correct:!hadError.current,duration:now-wordStarted.current});
+      if(index===word.length-1){
+        learner.current?.record({kind:"word",word,correct:!hadError.current,duration:now-wordStarted.current});
         setP(current=>({...current,totalPracticeWords:current.totalPracticeWords+1}));
         hadError.current=false;
-
-        const next=wordQueue.current.shift()??{word:randomWord(skills.current,currentWord),definition:null,isNew:false};
+        const next=wordQueue.current.shift()??{word:randomWord(skills.current,word),definition:null,isNew:false};
         const advance=()=>{
-          wordState.current=next.word;
-          indexState.current=0;
           setWord(next.word);
           setWordIsNew(next.isNew);
           setDefinition(next.isNew ? (next.definition ?? "Meaning unavailable") : null);
@@ -244,35 +214,23 @@ export default function App({clerk=false}:{clerk?:boolean}){
         };
         animateWordExit(wordRef.current,advance);
       }else{
-        const nextIndex=currentIndex+1;
-        indexState.current=nextIndex;
-        setIndex(nextIndex);
+        setIndex(value=>value+1);
       }
     };
-
     window.addEventListener("keydown",onKey);
     return()=>window.removeEventListener("keydown",onKey);
-  },[]);
+  },[word,index,quiz,account,help,settings]);
+
   useEffect(()=>{
     if(p.totalPracticeWords===0||p.totalPracticeWords%20!==0)return;
-    if(Date.now()-refineAt.current<120000||refining.current)return;
+    if(Date.now()-refineAt.current<120000)return;
     refineAt.current=Date.now();
-    refining.current=true;
-    let idleId:number|undefined;
-    let timerId:number|undefined;
-    const run=()=>{
-      void quietlyRefineProfile("activeSeconds="+p.activeSeconds+";totalWords="+p.totalPracticeWords+";skills="+JSON.stringify(skills.current))
-        .finally(()=>{refining.current=false});
-    };
+    const run=()=>void quietlyRefineProfile("activeSeconds="+p.activeSeconds+";totalWords="+p.totalPracticeWords+";skills="+JSON.stringify(skills.current));
     if("requestIdleCallback"in window){
-      idleId=(window as any).requestIdleCallback(run,{timeout:8000});
+      (window as any).requestIdleCallback(run,{timeout:8000});
     }else{
-      timerId=window.setTimeout(run,3000);
+      globalThis.setTimeout(run,3000);
     }
-    return()=>{
-      if(idleId!==undefined&&(window as any).cancelIdleCallback)(window as any).cancelIdleCallback(idleId);
-      if(timerId!==undefined)window.clearTimeout(timerId);
-    };
   },[p.totalPracticeWords]);
 
   useEffect(()=>{if(p.activeSeconds>=1800)setQuiz(true)},[p.activeSeconds]);
