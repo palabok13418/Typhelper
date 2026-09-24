@@ -103,7 +103,7 @@ export default async function handler(request,response){
       {
         headers:{
           accept:"application/json",
-          "user-agent":"Typing-Pro/0.2 (word-definition-lookup)"
+          "user-agent":"Typhelper/0.2 (word-definition-lookup)"
         }
       },
       WIKTIONARY_TIMEOUT_MS
