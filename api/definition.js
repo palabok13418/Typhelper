@@ -31,7 +31,7 @@ function stripMarkup(value){
     .replace(/&#39;|&apos;/gi,"'")
     .replace(/&lt;/gi,"<")
     .replace(/&gt;/gi,">")
-    .replace(/\\s+/g," ")
+    .replace(/\s+/g," ")
     .trim();
 }
 
@@ -52,7 +52,7 @@ function extractDatamuseDefinition(data,word){
   const entry=exact??data[0];
   if(!Array.isArray(entry?.defs))return null;
   const definition=entry.defs
-    .map(value=>String(value||"").replace(/^[a-z]+\\t/i,"").trim())
+    .map(value=>String(value||"").replace(/^[a-z]+\t/i,"").trim())
     .find(Boolean);
   return definition||null;
 }
