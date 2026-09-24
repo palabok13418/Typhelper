@@ -710,7 +710,7 @@ function QuizModal({skillMap,onClose,onFinish,onRecord}:{skillMap:Progress["skil
         <div className="modal-step">Typing check-in</div>
         <h1>Type the text below</h1>
       </div>
-      <button className="quiet-action" onClick={finish}>Finish</button>
+      <button className="quiet-action" onClick={()=>void finish()}>Finish</button>
     </header>
     <section className="checkin-running-shell">
       <div className="checkin-live-bar">
