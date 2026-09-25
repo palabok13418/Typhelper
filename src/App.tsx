@@ -1,7 +1,7 @@
 import{SignInButton,SignUpButton,UserButton,useUser}from"@clerk/react";
-import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Laptop,Lightbulb,LockKeyhole,Settings2,UserPlus,X}from"lucide-react";
+import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Laptop,Lightbulb,Settings2,UserPlus,X}from"lucide-react";
 import{useCallback,useEffect,useRef,useState,type ReactNode}from"react";
-import{load,save}from"./lib/storage";
+import{load,loadGeneratedWords,rememberGeneratedWord,save,saveGeneratedWords}from"./lib/storage";
 import{learn,randomWord}from"./lib/typing";
 import{GazeMonitor}from"./lib/gaze";
 import{scoreWebNN}from"./lib/webnn";
@@ -21,6 +21,7 @@ import type{GazeState,Progress,QuizResult}from"./types";
 
 type KeyboardStyle="windows"|"mac";
 type WindowsLayout="legacy"|"copilot";
+const CHECKIN_INTERVAL_SECONDS=30*60;
 
 export default function App({clerk=false}:{clerk?:boolean}){
   const[p,setP]=useState<Progress>(()=>load());
@@ -38,6 +39,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const[liveWpm,setLiveWpm]=useState(0);
   const[animateWordsOnEntry,setAnimateWordsOnEntry]=useState(()=>p.totalPracticeWords>0);
   const[quiz,setQuiz]=useState(false);
+  const[generatedWordCount,setGeneratedWordCount]=useState(()=>loadGeneratedWords().length);
   const[help,setHelp]=useState(false);
   const[settings,setSettings]=useState(false);
   const[keyboardStyle,setKeyboardStyle]=useState<KeyboardStyle>(()=>localStorage.getItem("typing-pro-keyboard-style")==="mac"?"mac":"windows");
@@ -72,6 +74,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const recentPractice=useRef<Array<{word:string;correct:boolean;duration:number}>>([]);
   const practiceAiBusy=useRef(false);
   const workspaceRef=useRef<HTMLElement>(null);
+  const checkinTriggered=useRef(false);
 
   useEffect(()=>{skills.current=p.skillMap},[p.skillMap]);
 
@@ -184,6 +187,23 @@ export default function App({clerk=false}:{clerk?:boolean}){
     animateKeyGuide(key);
   },[stuck,word,index]);
 
+  useEffect(()=>{
+    const onGeneratedWord=()=>setGeneratedWordCount(loadGeneratedWords().length);
+    window.addEventListener("typhelper-generated-word",onGeneratedWord);
+    return()=>window.removeEventListener("typhelper-generated-word",onGeneratedWord);
+  },[]);
+
+  useEffect(()=>{
+    if(!quiz&&p.activeSeconds<CHECKIN_INTERVAL_SECONDS)checkinTriggered.current=false;
+  },[quiz,p.activeSeconds]);
+
+  useEffect(()=>{
+    if(!quiz&&p.activeSeconds>=CHECKIN_INTERVAL_SECONDS&&!checkinTriggered.current){
+      checkinTriggered.current=true;
+      setQuiz(true);
+    }
+  },[p.activeSeconds,quiz]);
+
   useEffect(()=>{localStorage.setItem("typing-pro-keyboard-style",keyboardStyle)},[keyboardStyle]);
   useEffect(()=>{localStorage.setItem("typhelper-windows-layout",windowsLayout)},[windowsLayout]);
   useEffect(()=>{
@@ -199,9 +219,14 @@ export default function App({clerk=false}:{clerk?:boolean}){
     const activity=()=>{lastActivity.current=Date.now()};
     const timer=window.setInterval(()=>{
       if(document.visibilityState!=="visible"||quiz)return;
-      if(Date.now()-lastActivity.current<12000){
-        active.current=Math.min(1800,active.current+1);
-        setP(current=>({...current,activeSeconds:Math.min(1800,current.activeSeconds+1)}));
+      if(Date.now()-lastActivity.current<12000&&active.current<CHECKIN_INTERVAL_SECONDS){
+        const next=Math.min(CHECKIN_INTERVAL_SECONDS,active.current+1);
+        active.current=next;
+        setP(current=>({...current,activeSeconds:next}));
+        if(next>=CHECKIN_INTERVAL_SECONDS&&!checkinTriggered.current){
+          checkinTriggered.current=true;
+          setQuiz(true);
+        }
       }
     },1000);
     window.addEventListener("keydown",activity);
@@ -270,6 +295,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
         if(nextTotal%10===0)void runPracticeCoach();
         hadError.current=false;
         const next=wordQueue.current.shift()??{word:randomWord(skills.current,word),definition:null,isNew:false};
+        rememberGeneratedWord(next.word);
         const advance=()=>{
           setWord(next.word);
           setWordIsNew(next.isNew);
@@ -323,6 +349,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
 
   function finishQuiz(result:QuizResult,targetText:string,answer:string){
     active.current=0;
+    checkinTriggered.current=false;
     setP(current=>({...current,activeSeconds:0,bestScore:Math.max(current.bestScore,result.score),skillMap:learn(current.skillMap,targetText,answer),history:[result,...current.history].slice(0,30)}));
   }
 
@@ -342,7 +369,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
       <div className="right-controls">
         <button className="icon-action" aria-label="Help" onClick={()=>setHelp(true)}><CircleHelp size={17}/></button>
         <button className="icon-action" aria-label="Settings" onClick={()=>setSettings(true)}><Settings2 size={17}/></button>
-        <div className="next-check"><Clock3 size={14}/><span>check-in anytime</span></div>
+        <div className="next-check"><Clock3 size={14}/><span>{p.activeSeconds>=CHECKIN_INTERVAL_SECONDS?"check-in time":"check-in in "+formatTime(Math.max(0,CHECKIN_INTERVAL_SECONDS-p.activeSeconds))}</span></div>
       </div>
     </header>
 
@@ -375,8 +402,8 @@ export default function App({clerk=false}:{clerk?:boolean}){
             :<Counter value={p.totalPracticeWords} places={counterPlaces(p.totalPracticeWords)} fontSize={43} padding={0} gap={1} horizontalPadding={0} textColor="#202124" fontWeight={760} gradientHeight={0}/>}
         </div><div className="muted">completed this device</div></div>
         <div className="mini-card"><div className="mini-label">Live WPM</div><div className="big-stat stat-counter"><Counter value={liveWpm} places={counterPlaces(liveWpm)} fontSize={43} padding={0} gap={1} horizontalPadding={0} textColor="#202124" fontWeight={760} gradientHeight={0}/></div><div className="muted">current typing speed</div></div>
-        <div className="mini-card"><div className="mini-label">Check-in</div><div className="check-row"><span>Ready</span><Clock3 size={15}/></div><button className="solid-action" onClick={()=>setQuiz(true)}><span>Take check-in</span><ChevronRight size={16}/></button></div>
-        <div className="mini-card privacy-card"><LockKeyhole size={16}/><div><strong>Private by default</strong><p>Your typing stays on this device unless you choose to sync an account.</p></div></div>
+        <div className="mini-card"><div className="mini-label">Check-in</div><div className="check-row"><span>{p.activeSeconds>=CHECKIN_INTERVAL_SECONDS?"Check-in time":"Next check-in"}</span><strong>{formatTime(Math.max(0,CHECKIN_INTERVAL_SECONDS-p.activeSeconds))}</strong></div><button className="solid-action" onClick={()=>setQuiz(true)}><span>{p.activeSeconds>=CHECKIN_INTERVAL_SECONDS?"Start check-in":"Take check-in early"}</span><ChevronRight size={16}/></button></div>
+        <div className="mini-card"><div className="mini-label">Saved words</div><div className="check-row"><span>{generatedWordCount.toLocaleString()} generated</span><BookOpenText size={15}/></div><div className="muted">{clerk?"Synced to your account when signed in":"Saved on this device"}</div></div>
       </aside>
     </main>
 
@@ -402,6 +429,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
       setFingerColors={setFingerColors}
     />}
     {detailsOpen&&<WordDetailsModal word={word} details={wordDetails} loading={detailsLoading} error={detailsError} close={closeWordDetails}/>}
+    {clerk&&<AccountWordSync onCountChange={setGeneratedWordCount}/>}
     {quiz&&<QuizModal skillMap={p.skillMap} performanceMode={performanceMode} onClose={()=>setQuiz(false)} onRecord={event=>learner.current?.record(event)} onFinish={(result,targetText,answer)=>finishQuiz(result,targetText,answer)}/>}
   </div>
 }
@@ -505,7 +533,7 @@ function SettingsModal({close,keyboardStyle,setKeyboardStyle,windowsLayout,setWi
             <span><strong>Use paired vision signals</strong><small>Allow your paired Keyboard Vision extension to contribute aggregate gaze or hand-pose signals.</small></span>
             <input type="checkbox" checked={visionEnabled} onChange={event=>setVisionEnabled(event.target.checked)}/>
           </label>
-          <div className="simple-settings-privacy"><LockKeyhole size={15}/><span>Camera access in Typhelper is limited to check-ins. Nothing here turns on the camera.</span></div>
+          
         </section>
       </div>
 
@@ -513,6 +541,51 @@ function SettingsModal({close,keyboardStyle,setKeyboardStyle,windowsLayout,setWi
     </div>
   </div>
 }
+function AccountWordSync({onCountChange}:{onCountChange:(count:number)=>void}){
+  const{isLoaded,isSignedIn,user}=useUser();
+  const timer=useRef<number|null>(null);
+
+  useEffect(()=>{
+    if(!isLoaded||!isSignedIn||!user)return;
+    let cancelled=false;
+    const sync=async()=>{
+      if(cancelled)return;
+      const local=loadGeneratedWords();
+      const metadata=user.unsafeMetadata as Record<string,unknown>|undefined;
+      const typhelper=metadata?.typhelper;
+      const accountWords=typhelper&&typeof typhelper==="object"
+        ?(typhelper as Record<string,unknown>).generatedWords
+        :null;
+      const remote=Array.isArray(accountWords)
+        ?accountWords.filter((word):word is string=>typeof word==="string")
+        :[];
+      const merged=[...new Set([...remote,...local])].slice(-300);
+      saveGeneratedWords(merged);
+      onCountChange(merged.length);
+      try{
+        await (user as any).updateMetadata({
+          unsafeMetadata:{
+            typhelper:{generatedWords:merged}
+          }
+        });
+      }catch{}
+    };
+    const schedule=()=>{
+      if(timer.current!==null)window.clearTimeout(timer.current);
+      timer.current=window.setTimeout(()=>void sync(),900);
+    };
+    void sync();
+    window.addEventListener("typhelper-generated-word",schedule);
+    return()=>{
+      cancelled=true;
+      window.removeEventListener("typhelper-generated-word",schedule);
+      if(timer.current!==null)window.clearTimeout(timer.current);
+    };
+  },[isLoaded,isSignedIn,user]);
+
+  return null;
+}
+
 function AccountControl({open}:{open:()=>void}){
   const{isSignedIn}=useUser();
   if(isSignedIn)return <UserButton/>;
@@ -755,6 +828,7 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
     const controller=new AbortController();
     challengeRequest.current=controller;
     const next=nextChallengeWord();
+    rememberGeneratedWord(next.word);
     setChallengeWord(next);
     setChallengeAnswer("");
     setChallengeDetails(null);
@@ -901,7 +975,7 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
         <div><span>Accuracy</span><strong>{(score.stats.accuracy*100).toFixed(0)}%</strong></div>
         <div><span>Consistency</span><strong>{(score.stats.consistency*100).toFixed(0)}%</strong></div>
         <div><span>Focus pauses</span><strong>{score.focusPauses}</strong></div>
-        <div><span>Sentence</span><strong>{score.sentenceScore??"—"}</strong></div>
+        <div><span>Paragraph</span><strong>{score.sentenceScore??"—"}</strong></div>
       </div>
       {score.challengeWord&&<div className="challenge-result-note"><span>New word</span><strong>{score.challengeWord}</strong></div>}
       <div className="result-list"><div className="mini-label">Things to improve</div>{score.tips.map(item=><div className="tip" key={item}><Check size={14}/><span>{item}</span></div>)}</div>
@@ -915,17 +989,17 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
       <div className="checkin-intro-copy">
         <div className="checkin-icon"><Keyboard size={24}/></div>
         <h2>Two parts. One check-in.</h2>
-        <p>First, type a unique passage without looking down. Then you’ll get a new vocabulary word with its definition and synonyms and write one original sentence using it.</p>
+        <p>First, type a unique passage without looking down. Then you’ll get a new vocabulary word with its definition and synonyms and write a full paragraph using it.</p>
         <div className="checkin-note"><Camera size={15}/><span>{cameraStatus==="ready"?"Your camera is ready for focus detection.":cameraStatus==="busy"?"The camera is unavailable or already in use.":"Camera permission is needed for focus detection."}</span></div>
         {error&&<div className="permission-error">{error}</div>}
         <div className="checkin-actions"><button className="outline-action" onClick={onClose}>Not now</button><button className="solid-action" onClick={start}>{cameraStatus==="ready"?"Start check-in":"Allow camera & start"} <ChevronRight size={16}/></button></div>
       </div>
-      <div className="checkin-intro-preview"><div className="checkin-preview-top"><span>What happens</span><Camera size={15}/></div><div className="checkin-step"><strong>01</strong><span>Your camera is checked before the test starts.</span></div><div className="checkin-step"><strong>02</strong><span>Type the unique passage while focus detection watches for keyboard glances.</span></div><div className="checkin-step"><strong>03</strong><span>Use the new vocabulary word in your own sentence.</span></div></div>
+      <div className="checkin-intro-preview"><div className="checkin-preview-top"><span>What happens</span><Camera size={15}/></div><div className="checkin-step"><strong>01</strong><span>Your camera is checked before the test starts.</span></div><div className="checkin-step"><strong>02</strong><span>Type the unique passage while focus detection watches for keyboard glances.</span></div><div className="checkin-step"><strong>03</strong><span>Use the new vocabulary word naturally in a full paragraph.</span></div></div>
     </section>
   </main>;
 
   if(part==="sentence"&&challengeWord)return <main className="checkin-page checkin-running-page" ref={screenRef}>
-    <header className="checkin-header"><div><div className="modal-step">Part 2 of 2 · Vocabulary</div><h1>Use the new word</h1></div><button className="quiet-action" onClick={()=>void submitChallenge()}>Submit sentence</button></header>
+    <header className="checkin-header"><div><div className="modal-step">Part 2 of 2 · Vocabulary</div><h1>Use the new word</h1></div><button className="quiet-action" onClick={()=>void submitChallenge()} disabled={challengeAnswer.trim().split(/\s+/).filter(Boolean).length<50}>Submit paragraph</button></header>
     <section className="checkin-running-shell sentence-challenge-shell">
       <div className="checkin-live-bar"><span>{paused?"Paused · look back at the screen":!eyesDetected?"Look toward the camera":gaze==="screen"?"Screen focus":"Checking focus"}</span><strong>New word</strong></div>
       <div className="sentence-challenge">
@@ -939,14 +1013,14 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
         <textarea
           value={challengeAnswer}
           onChange={event=>setChallengeAnswer(event.target.value)}
-          placeholder={"Write one original sentence using “"+challengeWord.word+"”."}
-          aria-label={"Write a sentence using "+challengeWord.word}
+          placeholder={"Write at least 50 words in one original paragraph using “"+challengeWord.word+"”."}
+          aria-label={"Write a paragraph using "+challengeWord.word}
           disabled={paused}
           autoFocus
         />
-        <div className="challenge-prompt-row"><span>{paused?"Look back at the screen to keep typing.":"Use the word naturally. Don’t copy the definition."}</span><strong>{challengeAnswer.trim().length} chars</strong></div>
-        {sentenceScore&&<div className="challenge-feedback"><strong>Sentence check: {sentenceScore.score}/100</strong><span>{sentenceScore.tips[0]}</span></div>}
-        <button className="solid-action challenge-submit" onClick={submitChallenge} disabled={paused||challengeAnswer.trim().length<6}>{paused?"Look back at the screen":"Check sentence"} <ChevronRight size={16}/></button>
+        <div className="challenge-prompt-row"><span>{paused?"Look back at the screen to keep typing.":"Write one complete paragraph. Use the word naturally and don’t copy the definition."}</span><strong>{challengeAnswer.trim().split(/\s+/).filter(Boolean).length} / 50 words</strong></div>
+        {sentenceScore&&<div className="challenge-feedback"><strong>Paragraph check: {sentenceScore.score}/100</strong><span>{sentenceScore.tips[0]}</span></div>}
+        <button className="solid-action challenge-submit" onClick={submitChallenge} disabled={paused||challengeAnswer.trim().split(/\s+/).filter(Boolean).length<50}>{paused?"Look back at the screen":"Check paragraph"} <ChevronRight size={16}/></button>
       </div>
       <video ref={video} muted playsInline className="vision-probe" aria-hidden="true" tabIndex={-1}/>
     </section>

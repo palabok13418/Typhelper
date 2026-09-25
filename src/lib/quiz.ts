@@ -133,21 +133,21 @@ export function scoreSentenceChallenge(word:string,answer:string,definition:stri
     ?clamp(1-copied/Math.max(2,Math.min(6,definitionWords.length)),0,1)
     :1;
 
-  const lengthScore=wordCount>=6&&wordCount<=30?20:wordCount>=4?12:wordCount>30?10:0;
+  const lengthScore=wordCount>=60&&wordCount<=220?25:wordCount>=50?18:wordCount>220?12:0;
   const score=Math.round(clamp(
-    (usesWord?40:0)+
+    (usesWord?30:0)+
     lengthScore+
-    (hasPunctuation?10:0)+
-    (startsCapital?5:0)+
-    (originality*20)+
-    (endings===1?5:endings>1?2:0),
+    (hasPunctuation?8:0)+
+    (startsCapital?4:0)+
+    (originality*28)+
+    (endings===1?5:endings>=2?3:0),
     0,
     100
   ));
 
   const tips:string[]=[];
   if(!usesWord)tips.push("use the challenge word exactly in your sentence");
-  if(wordCount<6)tips.push("write a complete sentence with at least six words");
+  if(wordCount<50)tips.push("write a full paragraph with at least 50 words");
   if(!hasPunctuation)tips.push("finish the sentence with punctuation");
   if(originality<.55)tips.push("use your own phrasing instead of copying the definition");
   if(!tips.length)tips.push("good application of the new word in an original sentence");
