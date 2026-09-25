@@ -1,7 +1,7 @@
 import{SignInButton,SignUpButton,UserButton,useUser}from"@clerk/react";
 import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Laptop,Lightbulb,Settings2,UserPlus,X}from"lucide-react";
 import{useCallback,useEffect,useRef,useState,type ReactNode}from"react";
-import{load,loadGeneratedWords,rememberGeneratedWord,save}from"./lib/storage";
+import{load,loadGeneratedWords,rememberGeneratedWord,save,saveGeneratedWords}from"./lib/storage";
 import{learn,randomWord}from"./lib/typing";
 import{GazeMonitor}from"./lib/gaze";
 import{scoreWebNN}from"./lib/webnn";
@@ -196,6 +196,13 @@ export default function App({clerk=false}:{clerk?:boolean}){
   useEffect(()=>{
     if(!quiz&&p.activeSeconds<CHECKIN_INTERVAL_SECONDS)checkinTriggered.current=false;
   },[quiz,p.activeSeconds]);
+
+  useEffect(()=>{
+    if(!quiz&&p.activeSeconds>=CHECKIN_INTERVAL_SECONDS&&!checkinTriggered.current){
+      checkinTriggered.current=true;
+      setQuiz(true);
+    }
+  },[p.activeSeconds,quiz]);
 
   useEffect(()=>{localStorage.setItem("typing-pro-keyboard-style",keyboardStyle)},[keyboardStyle]);
   useEffect(()=>{localStorage.setItem("typhelper-windows-layout",windowsLayout)},[windowsLayout]);
@@ -821,6 +828,7 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
     const controller=new AbortController();
     challengeRequest.current=controller;
     const next=nextChallengeWord();
+    rememberGeneratedWord(next.word);
     setChallengeWord(next);
     setChallengeAnswer("");
     setChallengeDetails(null);
