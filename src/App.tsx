@@ -603,6 +603,7 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
   const[phase,setPhase]=useState<"intro"|"running"|"analyzing"|"result">("intro");
   const[part,setPart]=useState<"typing"|"sentence">("typing");
   const[gaze,setGaze]=useState<GazeState>("unknown");
+  const[eyesDetected,setEyesDetected]=useState(false);
   const[paused,setPaused]=useState(false);
   const[answer,setAnswer]=useState("");
   const[challengeAnswer,setChallengeAnswer]=useState("");
@@ -741,7 +742,8 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
     return()=>window.removeEventListener("keydown",handleKeyDown);
   },[phase,part,paused,answer,onRecord]);
 
-  function handleGaze(state:GazeState){
+  function handleGaze(state:GazeState,detected=true){
+    setEyesDetected(detected);
     setGaze(state);
     if(state==="keyboard"&&previous.current!=="keyboard"){focus.current+=1;setPaused(true)}
     if(state==="screen")setPaused(false);
@@ -799,6 +801,7 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
       setSentenceScore(null);
       setPaused(false);
       setGaze("unknown");
+      setEyesDetected(false);
       previous.current="unknown";
       setPart("typing");
       setPhase("running");
@@ -924,7 +927,7 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
   if(part==="sentence"&&challengeWord)return <main className="checkin-page checkin-running-page" ref={screenRef}>
     <header className="checkin-header"><div><div className="modal-step">Part 2 of 2 · Vocabulary</div><h1>Use the new word</h1></div><button className="quiet-action" onClick={()=>void submitChallenge()}>Submit sentence</button></header>
     <section className="checkin-running-shell sentence-challenge-shell">
-      <div className="checkin-live-bar"><span>{paused?"Paused · look back at the screen":gaze==="screen"?"Screen focus":"Checking focus"}</span><strong>New word</strong></div>
+      <div className="checkin-live-bar"><span>{paused?"Paused · look back at the screen":!eyesDetected?"Look toward the camera":gaze==="screen"?"Screen focus":"Checking focus"}</span><strong>New word</strong></div>
       <div className="sentence-challenge">
         <div className="modal-step">Challenge word</div>
         <div className="challenge-word">{challengeWord.word}</div>
@@ -952,7 +955,7 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
   return <main className="checkin-page checkin-running-page" ref={screenRef}>
     <header className="checkin-header"><div><div className="modal-step">Part 1 of 2 · Typing</div><h1>Type the passage</h1></div><button className="quiet-action" onClick={()=>void loadChallenge()} disabled={answer.length<target.current.length}>Skip to vocabulary</button></header>
     <section className="checkin-running-shell">
-      <div className="checkin-live-bar"><span>{paused?"Paused · look back at the screen":gaze==="screen"?"Screen focus":"Calibrating focus"}</span><strong>{answer.length} / {target.current.length}</strong></div>
+      <div className="checkin-live-bar"><span>{paused?"Paused · look back at the screen":!eyesDetected?"Look toward the camera":gaze==="screen"?"Screen focus":"Calibrating focus"}</span><strong>{answer.length} / {target.current.length}</strong></div>
       <div className="quiz-target checkin-target" aria-live="polite">{[...target.current].map((char,i)=><span key={i} className={i<answer.length?(answer[i]===char?"typed":"miss"):""}>{char}</span>)}</div>
       <video ref={video} muted playsInline className="vision-probe" aria-hidden="true" tabIndex={-1}/>
     </section>
