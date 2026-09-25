@@ -1,6 +1,8 @@
 import type{Progress,QuizResult,SkillMap}from"../types";
 
 const KEY="typing-pro-progress-v1";
+const GENERATED_WORDS_KEY="typhelper-generated-words-v1";
+const MAX_DEVICE_GENERATED_WORDS=2000;
 
 export const fresh=():Progress=>({
   version:1,
@@ -56,4 +58,29 @@ export function load():Progress{
 
 export function save(p:Progress){
   try{localStorage.setItem(KEY,JSON.stringify(p))}catch{}
+}
+
+export function loadGeneratedWords():string[]{
+  try{
+    const parsed=JSON.parse(localStorage.getItem(GENERATED_WORDS_KEY)||"[]");
+    return Array.isArray(parsed)
+      ?parsed.filter((word):word is string=>typeof word==="string"&&word.trim().length>0)
+      :[];
+  }catch{
+    return [];
+  }
+}
+
+export function saveGeneratedWords(words:string[]){
+  try{
+    const normalized=[...new Set(words.map(word=>word.trim().toLowerCase()).filter(Boolean))].slice(-MAX_DEVICE_GENERATED_WORDS);
+    localStorage.setItem(GENERATED_WORDS_KEY,JSON.stringify(normalized));
+  }catch{}
+}
+
+export function rememberGeneratedWord(word:string){
+  const clean=word.trim().toLowerCase();
+  if(!clean)return;
+  const words=loadGeneratedWords();
+  saveGeneratedWords([...words,clean]);
 }
