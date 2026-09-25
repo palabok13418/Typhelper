@@ -482,3 +482,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .checkin-analysis-state span{max-width:470px;font-size:11px;line-height:1.55}
 .analysis-spinner{width:34px;height:34px;border:3px solid #e8e9e6;border-top-color:#202124;border-radius:50%;animation:typhelper-spin .8s linear infinite;margin-bottom:4px}
 @keyframes typhelper-spin{to{transform:rotate(360deg)}}
+
+.check-row strong{font:700 14px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#202124}
+.challenge-prompt-row strong{font-variant-numeric:tabular-nums}
+.sentence-challenge textarea{min-height:260px;line-height:1.7}
