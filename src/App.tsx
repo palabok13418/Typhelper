@@ -21,6 +21,7 @@ import type{GazeState,Progress,QuizResult}from"./types";
 
 type KeyboardStyle="windows"|"mac";
 type WindowsLayout="legacy"|"copilot";
+const CHECKIN_INTERVAL_SECONDS=30*60;
 
 export default function App({clerk=false}:{clerk?:boolean}){
   const[p,setP]=useState<Progress>(()=>load());
@@ -421,7 +422,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
       setFingerColors={setFingerColors}
     />}
     {detailsOpen&&<WordDetailsModal word={word} details={wordDetails} loading={detailsLoading} error={detailsError} close={closeWordDetails}/>}
-    {clerk&&<AccountWordSync/>}
+    {clerk&&<AccountWordSync onCountChange={setGeneratedWordCount}/>}
     {quiz&&<QuizModal skillMap={p.skillMap} performanceMode={performanceMode} onClose={()=>setQuiz(false)} onRecord={event=>learner.current?.record(event)} onFinish={(result,targetText,answer)=>finishQuiz(result,targetText,answer)}/>}
   </div>
 }
@@ -533,7 +534,7 @@ function SettingsModal({close,keyboardStyle,setKeyboardStyle,windowsLayout,setWi
     </div>
   </div>
 }
-function AccountWordSync(){
+function AccountWordSync({onCountChange}:{onCountChange:(count:number)=>void}){
   const{isLoaded,isSignedIn,user}=useUser();
   const timer=useRef<number|null>(null);
 
@@ -553,6 +554,7 @@ function AccountWordSync(){
         :[];
       const merged=[...new Set([...remote,...local])].slice(-300);
       saveGeneratedWords(merged);
+      onCountChange(merged.length);
       try{
         await (user as any).updateMetadata({
           unsafeMetadata:{
