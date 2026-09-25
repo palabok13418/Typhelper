@@ -526,7 +526,7 @@ function SettingsModal({close,keyboardStyle,setKeyboardStyle,windowsLayout,setWi
             <span><strong>Use paired vision signals</strong><small>Allow your paired Keyboard Vision extension to contribute aggregate gaze or hand-pose signals.</small></span>
             <input type="checkbox" checked={visionEnabled} onChange={event=>setVisionEnabled(event.target.checked)}/>
           </label>
-          <div className="simple-settings-privacy"><LockKeyhole size={15}/><span>Camera access in Typhelper is limited to check-ins. Nothing here turns on the camera.</span></div>
+          
         </section>
       </div>
 
@@ -967,7 +967,7 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
         <div><span>Accuracy</span><strong>{(score.stats.accuracy*100).toFixed(0)}%</strong></div>
         <div><span>Consistency</span><strong>{(score.stats.consistency*100).toFixed(0)}%</strong></div>
         <div><span>Focus pauses</span><strong>{score.focusPauses}</strong></div>
-        <div><span>Sentence</span><strong>{score.sentenceScore??"—"}</strong></div>
+        <div><span>Paragraph</span><strong>{score.sentenceScore??"—"}</strong></div>
       </div>
       {score.challengeWord&&<div className="challenge-result-note"><span>New word</span><strong>{score.challengeWord}</strong></div>}
       <div className="result-list"><div className="mini-label">Things to improve</div>{score.tips.map(item=><div className="tip" key={item}><Check size={14}/><span>{item}</span></div>)}</div>
@@ -981,17 +981,17 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
       <div className="checkin-intro-copy">
         <div className="checkin-icon"><Keyboard size={24}/></div>
         <h2>Two parts. One check-in.</h2>
-        <p>First, type a unique passage without looking down. Then you’ll get a new vocabulary word with its definition and synonyms and write one original sentence using it.</p>
+        <p>First, type a unique passage without looking down. Then you’ll get a new vocabulary word with its definition and synonyms and write a full paragraph using it.</p>
         <div className="checkin-note"><Camera size={15}/><span>{cameraStatus==="ready"?"Your camera is ready for focus detection.":cameraStatus==="busy"?"The camera is unavailable or already in use.":"Camera permission is needed for focus detection."}</span></div>
         {error&&<div className="permission-error">{error}</div>}
         <div className="checkin-actions"><button className="outline-action" onClick={onClose}>Not now</button><button className="solid-action" onClick={start}>{cameraStatus==="ready"?"Start check-in":"Allow camera & start"} <ChevronRight size={16}/></button></div>
       </div>
-      <div className="checkin-intro-preview"><div className="checkin-preview-top"><span>What happens</span><Camera size={15}/></div><div className="checkin-step"><strong>01</strong><span>Your camera is checked before the test starts.</span></div><div className="checkin-step"><strong>02</strong><span>Type the unique passage while focus detection watches for keyboard glances.</span></div><div className="checkin-step"><strong>03</strong><span>Use the new vocabulary word in your own sentence.</span></div></div>
+      <div className="checkin-intro-preview"><div className="checkin-preview-top"><span>What happens</span><Camera size={15}/></div><div className="checkin-step"><strong>01</strong><span>Your camera is checked before the test starts.</span></div><div className="checkin-step"><strong>02</strong><span>Type the unique passage while focus detection watches for keyboard glances.</span></div><div className="checkin-step"><strong>03</strong><span>Use the new vocabulary word naturally in a full paragraph.</span></div></div>
     </section>
   </main>;
 
   if(part==="sentence"&&challengeWord)return <main className="checkin-page checkin-running-page" ref={screenRef}>
-    <header className="checkin-header"><div><div className="modal-step">Part 2 of 2 · Vocabulary</div><h1>Use the new word</h1></div><button className="quiet-action" onClick={()=>void submitChallenge()}>Submit sentence</button></header>
+    <header className="checkin-header"><div><div className="modal-step">Part 2 of 2 · Vocabulary</div><h1>Use the new word</h1></div><button className="quiet-action" onClick={()=>void submitChallenge()} disabled={challengeAnswer.trim().split(/\s+/).filter(Boolean).length<50}>Submit paragraph</button></header>
     <section className="checkin-running-shell sentence-challenge-shell">
       <div className="checkin-live-bar"><span>{paused?"Paused · look back at the screen":!eyesDetected?"Look toward the camera":gaze==="screen"?"Screen focus":"Checking focus"}</span><strong>New word</strong></div>
       <div className="sentence-challenge">
@@ -1005,14 +1005,14 @@ function QuizModal({skillMap,performanceMode,onClose,onFinish,onRecord}:{skillMa
         <textarea
           value={challengeAnswer}
           onChange={event=>setChallengeAnswer(event.target.value)}
-          placeholder={"Write one original sentence using “"+challengeWord.word+"”."}
-          aria-label={"Write a sentence using "+challengeWord.word}
+          placeholder={"Write at least 50 words in one original paragraph using “"+challengeWord.word+"”."}
+          aria-label={"Write a paragraph using "+challengeWord.word}
           disabled={paused}
           autoFocus
         />
-        <div className="challenge-prompt-row"><span>{paused?"Look back at the screen to keep typing.":"Use the word naturally. Don’t copy the definition."}</span><strong>{challengeAnswer.trim().length} chars</strong></div>
-        {sentenceScore&&<div className="challenge-feedback"><strong>Sentence check: {sentenceScore.score}/100</strong><span>{sentenceScore.tips[0]}</span></div>}
-        <button className="solid-action challenge-submit" onClick={submitChallenge} disabled={paused||challengeAnswer.trim().length<6}>{paused?"Look back at the screen":"Check sentence"} <ChevronRight size={16}/></button>
+        <div className="challenge-prompt-row"><span>{paused?"Look back at the screen to keep typing.":"Write one complete paragraph. Use the word naturally and don’t copy the definition."}</span><strong>{challengeAnswer.trim().split(/\s+/).filter(Boolean).length} / 50 words</strong></div>
+        {sentenceScore&&<div className="challenge-feedback"><strong>Paragraph check: {sentenceScore.score}/100</strong><span>{sentenceScore.tips[0]}</span></div>}
+        <button className="solid-action challenge-submit" onClick={submitChallenge} disabled={paused||challengeAnswer.trim().split(/\s+/).filter(Boolean).length<50}>{paused?"Look back at the screen":"Check paragraph"} <ChevronRight size={16}/></button>
       </div>
       <video ref={video} muted playsInline className="vision-probe" aria-hidden="true" tabIndex={-1}/>
     </section>
