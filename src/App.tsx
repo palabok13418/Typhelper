@@ -1,7 +1,7 @@
 import{SignInButton,SignUpButton,UserButton,useUser}from"@clerk/react";
-import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Laptop,Lightbulb,LockKeyhole,Settings2,UserPlus,X}from"lucide-react";
+import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Laptop,Lightbulb,Settings2,UserPlus,X}from"lucide-react";
 import{useCallback,useEffect,useRef,useState,type ReactNode}from"react";
-import{load,save}from"./lib/storage";
+import{load,loadGeneratedWords,rememberGeneratedWord,save}from"./lib/storage";
 import{learn,randomWord}from"./lib/typing";
 import{GazeMonitor}from"./lib/gaze";
 import{scoreWebNN}from"./lib/webnn";
@@ -38,6 +38,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const[liveWpm,setLiveWpm]=useState(0);
   const[animateWordsOnEntry,setAnimateWordsOnEntry]=useState(()=>p.totalPracticeWords>0);
   const[quiz,setQuiz]=useState(false);
+  const[generatedWordCount,setGeneratedWordCount]=useState(()=>loadGeneratedWords().length);
   const[help,setHelp]=useState(false);
   const[settings,setSettings]=useState(false);
   const[keyboardStyle,setKeyboardStyle]=useState<KeyboardStyle>(()=>localStorage.getItem("typing-pro-keyboard-style")==="mac"?"mac":"windows");
@@ -72,6 +73,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const recentPractice=useRef<Array<{word:string;correct:boolean;duration:number}>>([]);
   const practiceAiBusy=useRef(false);
   const workspaceRef=useRef<HTMLElement>(null);
+  const checkinTriggered=useRef(false);
 
   useEffect(()=>{skills.current=p.skillMap},[p.skillMap]);
 
@@ -184,6 +186,16 @@ export default function App({clerk=false}:{clerk?:boolean}){
     animateKeyGuide(key);
   },[stuck,word,index]);
 
+  useEffect(()=>{
+    const onGeneratedWord=()=>setGeneratedWordCount(loadGeneratedWords().length);
+    window.addEventListener("typhelper-generated-word",onGeneratedWord);
+    return()=>window.removeEventListener("typhelper-generated-word",onGeneratedWord);
+  },[]);
+
+  useEffect(()=>{
+    if(!quiz&&p.activeSeconds<CHECKIN_INTERVAL_SECONDS)checkinTriggered.current=false;
+  },[quiz,p.activeSeconds]);
+
   useEffect(()=>{localStorage.setItem("typing-pro-keyboard-style",keyboardStyle)},[keyboardStyle]);
   useEffect(()=>{localStorage.setItem("typhelper-windows-layout",windowsLayout)},[windowsLayout]);
   useEffect(()=>{
@@ -199,9 +211,14 @@ export default function App({clerk=false}:{clerk?:boolean}){
     const activity=()=>{lastActivity.current=Date.now()};
     const timer=window.setInterval(()=>{
       if(document.visibilityState!=="visible"||quiz)return;
-      if(Date.now()-lastActivity.current<12000){
-        active.current=Math.min(1800,active.current+1);
-        setP(current=>({...current,activeSeconds:Math.min(1800,current.activeSeconds+1)}));
+      if(Date.now()-lastActivity.current<12000&&active.current<CHECKIN_INTERVAL_SECONDS){
+        const next=Math.min(CHECKIN_INTERVAL_SECONDS,active.current+1);
+        active.current=next;
+        setP(current=>({...current,activeSeconds:next}));
+        if(next>=CHECKIN_INTERVAL_SECONDS&&!checkinTriggered.current){
+          checkinTriggered.current=true;
+          setQuiz(true);
+        }
       }
     },1000);
     window.addEventListener("keydown",activity);
@@ -270,6 +287,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
         if(nextTotal%10===0)void runPracticeCoach();
         hadError.current=false;
         const next=wordQueue.current.shift()??{word:randomWord(skills.current,word),definition:null,isNew:false};
+        rememberGeneratedWord(next.word);
         const advance=()=>{
           setWord(next.word);
           setWordIsNew(next.isNew);
@@ -323,6 +341,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
 
   function finishQuiz(result:QuizResult,targetText:string,answer:string){
     active.current=0;
+    checkinTriggered.current=false;
     setP(current=>({...current,activeSeconds:0,bestScore:Math.max(current.bestScore,result.score),skillMap:learn(current.skillMap,targetText,answer),history:[result,...current.history].slice(0,30)}));
   }
 
@@ -342,7 +361,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
       <div className="right-controls">
         <button className="icon-action" aria-label="Help" onClick={()=>setHelp(true)}><CircleHelp size={17}/></button>
         <button className="icon-action" aria-label="Settings" onClick={()=>setSettings(true)}><Settings2 size={17}/></button>
-        <div className="next-check"><Clock3 size={14}/><span>check-in anytime</span></div>
+        <div className="next-check"><Clock3 size={14}/><span>{p.activeSeconds>=CHECKIN_INTERVAL_SECONDS?"check-in time":"check-in in "+formatTime(Math.max(0,CHECKIN_INTERVAL_SECONDS-p.activeSeconds))}</span></div>
       </div>
     </header>
 
@@ -375,8 +394,8 @@ export default function App({clerk=false}:{clerk?:boolean}){
             :<Counter value={p.totalPracticeWords} places={counterPlaces(p.totalPracticeWords)} fontSize={43} padding={0} gap={1} horizontalPadding={0} textColor="#202124" fontWeight={760} gradientHeight={0}/>}
         </div><div className="muted">completed this device</div></div>
         <div className="mini-card"><div className="mini-label">Live WPM</div><div className="big-stat stat-counter"><Counter value={liveWpm} places={counterPlaces(liveWpm)} fontSize={43} padding={0} gap={1} horizontalPadding={0} textColor="#202124" fontWeight={760} gradientHeight={0}/></div><div className="muted">current typing speed</div></div>
-        <div className="mini-card"><div className="mini-label">Check-in</div><div className="check-row"><span>Ready</span><Clock3 size={15}/></div><button className="solid-action" onClick={()=>setQuiz(true)}><span>Take check-in</span><ChevronRight size={16}/></button></div>
-        <div className="mini-card privacy-card"><LockKeyhole size={16}/><div><strong>Private by default</strong><p>Your typing stays on this device unless you choose to sync an account.</p></div></div>
+        <div className="mini-card"><div className="mini-label">Check-in</div><div className="check-row"><span>{p.activeSeconds>=CHECKIN_INTERVAL_SECONDS?"Check-in time":"Next check-in"}</span><strong>{formatTime(Math.max(0,CHECKIN_INTERVAL_SECONDS-p.activeSeconds))}</strong></div><button className="solid-action" onClick={()=>setQuiz(true)}><span>{p.activeSeconds>=CHECKIN_INTERVAL_SECONDS?"Start check-in":"Take check-in early"}</span><ChevronRight size={16}/></button></div>
+        <div className="mini-card"><div className="mini-label">Saved words</div><div className="check-row"><span>{generatedWordCount.toLocaleString()} generated</span><BookOpenText size={15}/></div><div className="muted">{clerk?"Synced to your account when signed in":"Saved on this device"}</div></div>
       </aside>
     </main>
 
@@ -402,6 +421,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
       setFingerColors={setFingerColors}
     />}
     {detailsOpen&&<WordDetailsModal word={word} details={wordDetails} loading={detailsLoading} error={detailsError} close={closeWordDetails}/>}
+    {clerk&&<AccountWordSync/>}
     {quiz&&<QuizModal skillMap={p.skillMap} performanceMode={performanceMode} onClose={()=>setQuiz(false)} onRecord={event=>learner.current?.record(event)} onFinish={(result,targetText,answer)=>finishQuiz(result,targetText,answer)}/>}
   </div>
 }
@@ -513,6 +533,50 @@ function SettingsModal({close,keyboardStyle,setKeyboardStyle,windowsLayout,setWi
     </div>
   </div>
 }
+function AccountWordSync(){
+  const{isLoaded,isSignedIn,user}=useUser();
+  const timer=useRef<number|null>(null);
+
+  useEffect(()=>{
+    if(!isLoaded||!isSignedIn||!user)return;
+    let cancelled=false;
+    const sync=async()=>{
+      if(cancelled)return;
+      const local=loadGeneratedWords();
+      const metadata=user.unsafeMetadata as Record<string,unknown>|undefined;
+      const typhelper=metadata?.typhelper;
+      const accountWords=typhelper&&typeof typhelper==="object"
+        ?(typhelper as Record<string,unknown>).generatedWords
+        :null;
+      const remote=Array.isArray(accountWords)
+        ?accountWords.filter((word):word is string=>typeof word==="string")
+        :[];
+      const merged=[...new Set([...remote,...local])].slice(-300);
+      saveGeneratedWords(merged);
+      try{
+        await (user as any).updateMetadata({
+          unsafeMetadata:{
+            typhelper:{generatedWords:merged}
+          }
+        });
+      }catch{}
+    };
+    const schedule=()=>{
+      if(timer.current!==null)window.clearTimeout(timer.current);
+      timer.current=window.setTimeout(()=>void sync(),900);
+    };
+    void sync();
+    window.addEventListener("typhelper-generated-word",schedule);
+    return()=>{
+      cancelled=true;
+      window.removeEventListener("typhelper-generated-word",schedule);
+      if(timer.current!==null)window.clearTimeout(timer.current);
+    };
+  },[isLoaded,isSignedIn,user]);
+
+  return null;
+}
+
 function AccountControl({open}:{open:()=>void}){
   const{isSignedIn}=useUser();
   if(isSignedIn)return <UserButton/>;
