@@ -137,10 +137,12 @@ function TypingSprint({onExit}:{onExit:()=>void}){
     setStatus("countdown");
   }
 
-  function finish(elapsed=Math.max(1,Date.now()-startAt)){
+  function finish(elapsed=Math.max(1,Date.now()-startAtRef.current)){
     if(finishedRef.current)return;
     finishedRef.current=true;
-    const correct=Math.max(0,answer.split("").filter((char,index)=>char===target[index]).length);
+    const currentAnswer=answerRef.current;
+    const currentTarget=targetRef.current;
+    const correct=Math.max(0,currentAnswer.split("").filter((char,index)=>char===currentTarget[index]).length);
     const total=Math.max(currentAnswer.length,1);
     const nextScore=sprintScore(correct,total,Math.min(elapsed,45000));
     const minutes=Math.max(1/60,Math.min(elapsed,45000)/60000);
