@@ -475,19 +475,34 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
   .workspace{grid-template-columns:1fr;min-height:auto;padding:40px 0}
   .practice-area{min-height:730px}.practice-side{grid-template-columns:repeat(3,1fr)}
 }
-.games-grid{grid-template-columns:1fr}@media(max-width:800px){.keyboard{min-width:820px}.keyboard-body-grid{grid-template-columns:15.5fr 4fr 4fr}.function-clusters{gap:8px}.games-overlay{padding:10px}.game-metrics{grid-template-columns:1fr 1fr}.duel-actions{grid-template-columns:1fr}.duel-divider{display:none}.duel-join{grid-row:auto}.duel-lobby-players{grid-template-columns:1fr}.duel-versus{min-height:24px}.duel-scoreboard{grid-template-columns:1fr}.duel-vs-badge{display:none}.milestone-toast{top:68px;right:10px}@media(max-width:650px){
+.games-grid{grid-template-columns:1fr}
+@media(max-width:800px){
+  .keyboard{min-width:820px}
+  .keyboard-body-grid{grid-template-columns:15.5fr 4fr 4fr}
+  .function-clusters{gap:8px}
+  .games-overlay{padding:10px}
+  .game-metrics{grid-template-columns:1fr 1fr}
+  .duel-actions{grid-template-columns:1fr}
+  .duel-divider{display:none}
+  .duel-join{grid-row:auto}
+  .duel-lobby-players{grid-template-columns:1fr}
+  .duel-versus{min-height:24px}
+  .duel-scoreboard{grid-template-columns:1fr}
+  .duel-vs-badge{display:none}
+  .milestone-toast{top:68px;right:10px}
+}
+@media(max-width:650px){
   .topbar{height:56px;padding:0 10px;grid-template-columns:auto 1fr auto}.wordmark{justify-content:center;font-size:13px}.left-controls .quiet-action{display:none}.right-controls{gap:4px}
   .outline-action{height:34px;padding:0 10px;font-size:11px}.icon-action{width:34px;height:34px}
   .workspace{width:calc(100% - 12px);padding:18px 0}
   .practice-area{min-height:700px}.session-line{font-size:11px}.word-stage{min-height:215px}.word-definition{max-width:92%;font-size:10px;padding:6px 10px}.word-definition strong{max-width:240px}.word{font-size:58px;letter-spacing:.045em}
   .keyboard-stage{align-items:flex-start}.keyboard{min-width:820px;padding:9px;border-radius:14px}.key{height:35px;min-height:35px;border-radius:6px;padding:3px 2px;font-size:8px}.function-clusters{gap:5px}.function-cluster{gap:3px}.function-key{height:24px;min-height:24px;font-size:6.5px}.keyboard-body-grid{gap:4px}.key-row{gap:3px;margin-bottom:3px}.nav-grid,.arrow-grid,.numpad-keyboard{gap:3px}.numpad-keyboard{grid-template-rows:repeat(5,35px)}.nav-grid .key,.numpad-keyboard .key{height:35px;min-height:35px}.arrow-grid{margin-inline:9px}
-  .key-row{gap:3px;margin-bottom:3px}.keyboard{padding:8px}.keyboard-note{font-size:9px}
+  .keyboard-note{font-size:9px}
   .practice-side{grid-template-columns:1fr}.result-metrics{grid-template-columns:1fr 1fr}
   .challenge-prompt-row{align-items:flex-start;flex-direction:column;gap:4px}
   .challenge-feedback{flex-direction:column;align-items:flex-start}
   .modal-actions{flex-wrap:wrap}.account-modal,.quiz-modal,.details-modal{padding:18px}.settings-modal{width:calc(100vw - 20px);max-height:calc(100vh - 20px)}.settings-header{padding:15px}.settings-scroll{padding:12px}.settings-grid{grid-template-columns:1fr}.performance-options{grid-template-columns:1fr}.settings-footer{padding:11px 12px}.setting-section{align-items:flex-start;flex-direction:column}.choice-row{width:100%}.choice{flex:1}.details-grid{grid-template-columns:1fr}
 }
-
 .stat-counter{display:flex;align-items:center;min-height:43px;margin-top:7px}
 .stat-counter .counter-container{display:block}
 .count-up-text{display:inline-block;font-variant-numeric:tabular-nums;font-size:43px;font-weight:760;letter-spacing:-.06em;line-height:1;color:#202124}
