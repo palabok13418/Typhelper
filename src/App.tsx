@@ -473,7 +473,8 @@ export default function App({clerk=false}:{clerk?:boolean}){
           <div className="games-card-head"><div className="games-card-icon"><Gamepad2 size={17}/></div><div><strong>Train without the drill</strong><span>Speed, accuracy, reaction, or a 1v1 Duelity race.</span></div></div>
           <button className="solid-action" onClick={()=>setGamesOpen(true)}>Open games <ChevronRight size={16}/></button>
         </div>
-      </aside>/main>
+      </aside>
+    </main>
 
     {account&&<AccountWarning clerk={clerk} close={()=>setAccount(false)}/>}
     {milestoneQueue[0]&&<MilestoneToast milestone={milestoneQueue[0]} username={accountUsername||loadGuestUsername()||null} onDismiss={()=>setMilestoneQueue(queue=>queue.slice(1))}/>}
