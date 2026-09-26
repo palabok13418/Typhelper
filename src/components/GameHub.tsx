@@ -102,7 +102,7 @@ function TypingSprint({onExit}:{onExit:()=>void}){
     if(status!=="countdown")return;
     if(countdown===null){return}
     if(countdown===0){
-      const timer=window.setTimeout(()=>{setStatus("playing");setStartAt(Date.now());setCountdown(null);inputRef.current?.focus()},450);
+      const timer=window.setTimeout(()=>{const start=Date.now();startAtRef.current=start;setStatus("playing");setStartAt(start);setCountdown(null);inputRef.current?.focus()},450);
       return()=>window.clearTimeout(timer);
     }
     const timer=window.setTimeout(()=>setCountdown(value=>value===null?null:value-1),900);
@@ -156,21 +156,22 @@ function TypingSprint({onExit}:{onExit:()=>void}){
     if(event.ctrlKey||event.metaKey||event.altKey)return;
     event.preventDefault();
     if(event.key==="Backspace"){
-      setAnswer(value=>value.slice(0,-1));return;
+      answerRef.current=answerRef.current.slice(0,-1);
+      setAnswer(answerRef.current);return;
     }
     if(event.key.length!==1)return;
     setAnswer(prev=>{
-      if(prev.length>=target.length)return prev;
-      const expected=target[prev.length];
+      if(prev.length>=targetRef.current.length)return prev;
+      const expected=targetRef.current[prev.length];
       if(event.key!==expected){errorsRef.current+=1;setErrors(errorsRef.current)}
       const next=prev+event.key;
       answerRef.current=next;
-      if(next.length===currentTarget.length)window.setTimeout(()=>finish(Date.now()-startAtRef.current),0);
+      if(next.length===targetRef.current.length)window.setTimeout(()=>finish(Date.now()-startAtRef.current),0);
       return next;
     });
   }
 
-  const correctChars=Math.min(answer.length,target.length)-errors;
+  const correctChars=Math.max(0,Math.min(answer.length,target.length)-errors);
   const accuracy=answer.length?Math.max(0,correctChars/answer.length):1;
   const progress=Math.round(answer.length/Math.max(1,target.length)*100);
 
@@ -223,7 +224,7 @@ function KeyCascade({onExit}:{onExit:()=>void}){
     if(status!=="playing")return;
     const timer=window.setInterval(()=>{
       const now=Date.now();
-      setElapsed(now-startAt);
+      setElapsed(Math.max(0,now-startAtRef.current));
       setDrop(value=>{
         const speed=0.0065+Math.min(.0075,comboRef.current*.00025);
         const next=value+speed;
@@ -237,7 +238,7 @@ function KeyCascade({onExit}:{onExit:()=>void}){
       if(now-startAtRef.current>=60000)finish();
     },50);
     return()=>window.clearInterval(timer);
-  },[status,startAt,combo]);
+  },[status,startAt]);
 
   useEffect(()=>{
     if(status==="playing"&&lives<=0)finish();
@@ -276,7 +277,7 @@ function KeyCascade({onExit}:{onExit:()=>void}){
       }
     };
     window.addEventListener("keydown",onKey);return()=>window.removeEventListener("keydown",onKey);
-  },[status,target,combo]);
+  },[status]);
 
   const accuracy=(correct+errors)?correct/(correct+errors):1;
   const time=Math.max(0,60-Math.floor(elapsed/1000));
@@ -314,6 +315,10 @@ function PrecisionRun({onExit}:{onExit:()=>void}){
   const[wrong,setWrong]=useState(false);
   const finishedRef=useRef(false);
   const inputRef=useRef<HTMLInputElement>(null);
+  const correctWordsRef=useRef(0);
+  const totalWordsRef=useRef(0);
+  const answerRef=useRef("");
+  const startAtRef=useRef(0);
 
   useEffect(()=>{
     if(status!=="countdown")return;
@@ -325,7 +330,7 @@ function PrecisionRun({onExit}:{onExit:()=>void}){
   useEffect(()=>{
     if(status!=="playing")return;
     const timer=window.setInterval(()=>{
-      const remaining=Math.max(0,60-Math.floor((Date.now()-startAt)/1000));
+      const remaining=Math.max(0,60-Math.floor((Date.now()-startAtRef.current)/1000));
       setTimeLeft(remaining);
       if(remaining<=0)finish();
     },100);
@@ -339,13 +344,13 @@ function PrecisionRun({onExit}:{onExit:()=>void}){
     if(finishedRef.current)return;
     finishedRef.current=true;
     const wpm=(correctWordsRef.current)/(Math.max(1,(Date.now()-startAtRef.current)/60000));
-    const final=precisionScore(correctWords,totalWords,wpm);
+    const final=precisionScore(correctWordsRef.current,totalWordsRef.current,wpm);
     setFinalScore(final);setStatus("finished");saveGameResult("precision",final);reportGameWpm(wpm);
   }
   function handleKey(event:ReactKeyboardEvent<HTMLInputElement>){
     if(status!=="playing")return;
     if(event.ctrlKey||event.metaKey||event.altKey)return;
-    if(event.key==="Backspace"){event.preventDefault();setAnswer(value=>value.slice(0,-1));return}
+    if(event.key==="Backspace"){event.preventDefault();answerRef.current=answerRef.current.slice(0,-1);setAnswer(answerRef.current);return}
     if(event.key.length!==1&&event.key!==" ")return;
     event.preventDefault();
     const next=answer+event.key;
