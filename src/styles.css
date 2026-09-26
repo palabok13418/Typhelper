@@ -111,23 +111,48 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
   padding:15px 15px 14px;
   border-radius:17px;
 }
-.keyboard-laptop .function-clusters{grid-template-columns:1fr 4fr 4fr 4fr;gap:12px}
-.keyboard-laptop .function-cluster{gap:6px}
-.keyboard-laptop .function-key{height:27px;min-height:27px;border-radius:6px}
-.keyboard-laptop .key-row{gap:4px;margin-bottom:4px}
-.keyboard-laptop .laptop-main{width:100%}
+.keyboard-laptop .laptop-main{width:100%;display:flex;flex-direction:column;gap:9px}
+.keyboard-laptop .laptop-function-row{
+  display:flex;
+  align-items:stretch;
+  gap:6px;
+  width:100%;
+}
+.keyboard-laptop .laptop-function-key{
+  flex:1 1 0;
+  min-width:0;
+  height:29px;
+  min-height:29px;
+  padding:3px 4px;
+  border-radius:6px;
+  font-size:clamp(6.5px,.55vw,8.5px);
+}
+.keyboard-laptop .laptop-function-key .key-glyph{
+  font-size:clamp(7px,.55vw,9px);
+  min-height:9px;
+}
+.keyboard-laptop .laptop-alpha-block{width:100%}
+.keyboard-laptop .key-row{
+  gap:4px;
+  margin-bottom:4px;
+}
 .keyboard-laptop .laptop-bottom-line{
   display:grid;
   grid-template-columns:minmax(0,1fr) 112px;
   gap:8px;
-  align-items:end
+  align-items:end;
 }
-.keyboard-laptop .laptop-bottom-line .key-row{margin-bottom:0}
+.keyboard-laptop .laptop-modifier-row{min-width:0}
+.keyboard-laptop .laptop-modifier-row .key-row{margin-bottom:0}
 .keyboard-laptop .laptop-arrow-wrap{min-width:0}
-.keyboard-laptop .laptop-arrow-wrap .arrow-grid{gap:4px;margin:0}
-.keyboard-laptop .arrow-key{height:var(--key-size);min-height:var(--key-size)}
-
-
+.keyboard-laptop .laptop-arrow-wrap .arrow-grid{
+  margin:0;
+  gap:4px;
+}
+.keyboard-laptop .laptop-arrow-wrap .arrow-key{
+  height:var(--key-size);
+  min-height:var(--key-size);
+}
 .keyboard-note{display:flex;align-items:center;gap:6px;margin-top:10px;color:#8c8f95;font-size:11px}
 
 
@@ -519,9 +544,10 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 }
 @media(max-width:650px){
   .keyboard-laptop{min-width:760px;padding:9px;border-radius:14px}
-  .keyboard-laptop .function-clusters{gap:5px}
-  .keyboard-laptop .function-cluster{gap:3px}
-  .keyboard-laptop .function-key{height:24px;min-height:24px;font-size:6.5px}
+  .keyboard-laptop .laptop-main{gap:5px}
+  .keyboard-laptop .laptop-function-row{gap:3px}
+  .keyboard-laptop .laptop-function-key{height:24px;min-height:24px;font-size:6px;padding:2px}
+  .keyboard-laptop .laptop-function-key .key-glyph{font-size:6.5px;min-height:8px}
   .keyboard-laptop .key-row{gap:3px;margin-bottom:3px}
   .keyboard-laptop .laptop-bottom-line{grid-template-columns:minmax(0,1fr) 108px;gap:4px}
   .keyboard-laptop .laptop-bottom-line .arrow-grid{gap:3px}
