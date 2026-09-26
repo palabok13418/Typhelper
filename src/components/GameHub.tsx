@@ -93,6 +93,10 @@ function TypingSprint({onExit}:{onExit:()=>void}){
   const[result,setResult]=useState<{score:number;wpm:number;accuracy:number}|null>(null);
   const inputRef=useRef<HTMLTextAreaElement>(null);
   const finishedRef=useRef(false);
+  const answerRef=useRef("");
+  const errorsRef=useRef(0);
+  const targetRef=useRef(target);
+  const startAtRef=useRef(0);
 
   useEffect(()=>{
     if(status!=="countdown")return;
@@ -118,13 +122,18 @@ function TypingSprint({onExit}:{onExit:()=>void}){
 
   function begin(){
     finishedRef.current=false;
-    setTarget(chooseItem(SPRINT_PASSAGES));
+    const nextTarget=chooseItem(SPRINT_PASSAGES);
+    targetRef.current=nextTarget;
+    answerRef.current="";
+    errorsRef.current=0;
+    setTarget(nextTarget);
     setAnswer("");
     setErrors(0);
     setScore(0);
     setResult(null);
     setTimeLeft(45);
     setCountdown(3);
+    setStartAt(0);
     setStatus("countdown");
   }
 
@@ -132,7 +141,7 @@ function TypingSprint({onExit}:{onExit:()=>void}){
     if(finishedRef.current)return;
     finishedRef.current=true;
     const correct=Math.max(0,answer.split("").filter((char,index)=>char===target[index]).length);
-    const total=Math.max(answer.length,1);
+    const total=Math.max(currentAnswer.length,1);
     const nextScore=sprintScore(correct,total,Math.min(elapsed,45000));
     const minutes=Math.max(1/60,Math.min(elapsed,45000)/60000);
     const wpm=(correct/5)/minutes;
@@ -153,9 +162,10 @@ function TypingSprint({onExit}:{onExit:()=>void}){
     setAnswer(prev=>{
       if(prev.length>=target.length)return prev;
       const expected=target[prev.length];
-      if(event.key!==expected)setErrors(value=>value+1);
+      if(event.key!==expected){errorsRef.current+=1;setErrors(errorsRef.current)}
       const next=prev+event.key;
-      if(next.length===target.length)window.setTimeout(()=>finish(Date.now()-startAt),0);
+      answerRef.current=next;
+      if(next.length===currentTarget.length)window.setTimeout(()=>finish(Date.now()-startAtRef.current),0);
       return next;
     });
   }
@@ -194,11 +204,18 @@ function KeyCascade({onExit}:{onExit:()=>void}){
   const[startAt,setStartAt]=useState(0);
   const[finishedScore,setFinishedScore]=useState(0);
   const finishedRef=useRef(false);
+  const scoreRef=useRef(0);
+  const correctRef=useRef(0);
+  const errorsRef=useRef(0);
+  const livesRef=useRef(3);
+  const comboRef=useRef(0);
+  const targetRef=useRef(target);
+  const startAtRef=useRef(0);
 
   useEffect(()=>{
     if(status!=="countdown")return;
     if(countdown===null)return;
-    if(countdown===0){const t=window.setTimeout(()=>{setStatus("playing");setStartAt(Date.now());setCountdown(null)},450);return()=>window.clearTimeout(t)}
+    if(countdown===0){const t=window.setTimeout(()=>{const start=Date.now();startAtRef.current=start;setStatus("playing");setStartAt(start);setCountdown(null)},450);return()=>window.clearTimeout(t)}
     const t=window.setTimeout(()=>setCountdown(value=>value===null?null:value-1),850);return()=>window.clearTimeout(t);
   },[status,countdown]);
 
@@ -208,17 +225,16 @@ function KeyCascade({onExit}:{onExit:()=>void}){
       const now=Date.now();
       setElapsed(now-startAt);
       setDrop(value=>{
-        const speed=0.0065+Math.min(.0075,combo*.00025);
+        const speed=0.0065+Math.min(.0075,comboRef.current*.00025);
         const next=value+speed;
         if(next>=1){
-          setLives(value=>Math.max(0,value-1));
-          setErrors(value=>value+1);
-          setCombo(0);
+          livesRef.current=Math.max(0,livesRef.current-1);errorsRef.current+=1;comboRef.current=0;
+          setLives(livesRef.current);setErrors(errorsRef.current);setCombo(0);
           return 0;
         }
         return next;
       });
-      if(now-startAt>=60000)finish();
+      if(now-startAtRef.current>=60000)finish();
     },50);
     return()=>window.clearInterval(timer);
   },[status,startAt,combo]);
@@ -228,13 +244,19 @@ function KeyCascade({onExit}:{onExit:()=>void}){
   },[lives,status]);
 
   function begin(){
-    finishedRef.current=false;setTarget(chooseItem(CASCADE_KEYS));setRounds(0);setCorrect(0);setErrors(0);setLives(3);setCombo(0);setScore(0);setDrop(0);setElapsed(0);setFinishedScore(0);setCountdown(3);setStatus("countdown");
+    finishedRef.current=false;
+    const nextTarget=chooseItem(CASCADE_KEYS);targetRef.current=nextTarget;scoreRef.current=0;correctRef.current=0;errorsRef.current=0;livesRef.current=3;comboRef.current=0;
+    setTarget(nextTarget);setRounds(0);setCorrect(0);setErrors(0);setLives(3);setCombo(0);setScore(0);setDrop(0);setElapsed(0);setFinishedScore(0);setCountdown(3);setStatus("countdown");
   }
   function finish(){
     if(finishedRef.current)return;
     finishedRef.current=true;
-    const accuracy=(correct+errors)?correct/(correct+errors):0;
-    const final=cascadeScore(score,accuracy,lives);
+    const currentCorrect=correctRef.current;
+    const currentErrors=errorsRef.current;
+    const currentLives=livesRef.current;
+    const currentScore=scoreRef.current;
+    const accuracy=(currentCorrect+currentErrors)?currentCorrect/(currentCorrect+currentErrors):0;
+    const final=cascadeScore(currentScore,accuracy,currentLives);
     setFinishedScore(final);setStatus("finished");saveGameResult("cascade",final);
   }
   useEffect(()=>{
@@ -242,13 +264,15 @@ function KeyCascade({onExit}:{onExit:()=>void}){
     const onKey=(event:KeyboardEvent)=>{
       if(event.key.length!==1)return;
       event.preventDefault();
-      if(event.key.toLowerCase()===target.toLowerCase()){
-        const nextCombo=combo+1;
-        setCorrect(value=>value+1);setRounds(value=>value+1);setCombo(nextCombo);
-        setScore(value=>value+100+Math.min(220,nextCombo*12));
-        setDrop(0);setTarget(chooseItem(CASCADE_KEYS));
+      if(event.key.toLowerCase()===targetRef.current.toLowerCase()){
+        const nextCombo=comboRef.current+1;const nextScore=scoreRef.current+100+Math.min(220,nextCombo*12);
+        comboRef.current=nextCombo;correctRef.current+=1;scoreRef.current=nextScore;
+        const nextTarget=chooseItem(CASCADE_KEYS);targetRef.current=nextTarget;
+        setCorrect(correctRef.current);setRounds(value=>value+1);setCombo(nextCombo);setScore(nextScore);
+        setDrop(0);setTarget(nextTarget);
       }else{
-        setErrors(value=>value+1);setCombo(0);setLives(value=>Math.max(0,value-1));setDrop(value=>Math.min(1,value+.12));
+        errorsRef.current+=1;livesRef.current=Math.max(0,livesRef.current-1);comboRef.current=0;
+        setErrors(errorsRef.current);setCombo(0);setLives(livesRef.current);setDrop(value=>Math.min(1,value+.12));
       }
     };
     window.addEventListener("keydown",onKey);return()=>window.removeEventListener("keydown",onKey);
@@ -294,7 +318,7 @@ function PrecisionRun({onExit}:{onExit:()=>void}){
   useEffect(()=>{
     if(status!=="countdown")return;
     if(countdown===null)return;
-    if(countdown===0){const t=window.setTimeout(()=>{setStatus("playing");setStartAt(Date.now());setCountdown(null);inputRef.current?.focus()},450);return()=>window.clearTimeout(t)}
+    if(countdown===0){const t=window.setTimeout(()=>{const start=Date.now();startAtRef.current=start;setStatus("playing");setStartAt(start);setCountdown(null);inputRef.current?.focus()},450);return()=>window.clearTimeout(t)}
     const t=window.setTimeout(()=>setCountdown(value=>value===null?null:value-1),850);return()=>window.clearTimeout(t);
   },[status,countdown]);
 
@@ -309,12 +333,12 @@ function PrecisionRun({onExit}:{onExit:()=>void}){
   },[status,startAt]);
 
   function begin(){
-    finishedRef.current=false;setCurrent(chooseItem(GAME_WORDS));setAnswer("");setCorrectWords(0);setTotalWords(0);setMisses(0);setStreak(0);setScore(0);setFinalScore(0);setTimeLeft(60);setWrong(false);setCountdown(3);setStatus("countdown");
+    finishedRef.current=false;correctWordsRef.current=0;totalWordsRef.current=0;answerRef.current="";setCurrent(chooseItem(GAME_WORDS));setAnswer("");setCorrectWords(0);setTotalWords(0);setMisses(0);setStreak(0);setScore(0);setFinalScore(0);setTimeLeft(60);setWrong(false);setCountdown(3);setStatus("countdown");
   }
   function finish(){
     if(finishedRef.current)return;
     finishedRef.current=true;
-    const wpm=(correctWords)/(Math.max(1,(Date.now()-startAt)/60000));
+    const wpm=(correctWordsRef.current)/(Math.max(1,(Date.now()-startAtRef.current)/60000));
     const final=precisionScore(correctWords,totalWords,wpm);
     setFinalScore(final);setStatus("finished");saveGameResult("precision",final);reportGameWpm(wpm);
   }
@@ -329,16 +353,16 @@ function PrecisionRun({onExit}:{onExit:()=>void}){
       const typed=answer.trim().toLowerCase();
       if(!typed)return;
       const good=typed===current;
-      setTotalWords(value=>value+1);
+      totalWordsRef.current+=1;setTotalWords(totalWordsRef.current);
       if(good){
-        const nextStreak=streak+1;setCorrectWords(value=>value+1);setStreak(nextStreak);setScore(value=>value+100+Math.min(300,nextStreak*18));setWrong(false);
+        const nextStreak=streak+1;correctWordsRef.current+=1;setCorrectWords(correctWordsRef.current);setStreak(nextStreak);setScore(value=>value+100+Math.min(300,nextStreak*18));setWrong(false);
       }else{
         setMisses(value=>value+1);setStreak(0);setWrong(true);
       }
-      setAnswer("");setCurrent(chooseItem(GAME_WORDS.filter(word=>word!==current)));
+      answerRef.current="";setAnswer("");setCurrent(chooseItem(GAME_WORDS.filter(word=>word!==current)));
       return;
     }
-    setWrong(false);setAnswer(next);
+    setWrong(false);answerRef.current=next;setAnswer(next);
   }
 
   const liveWpm=Math.round(correctWords/Math.max(1,(Date.now()-startAt)/60000));
