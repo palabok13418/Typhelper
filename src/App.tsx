@@ -8,7 +8,7 @@ import{scoreWebNN}from"./lib/webnn";
 import{createQuiz,nextChallengeWord,scoreQuiz,scoreSentenceChallenge,type ChallengeWord,type QuizScore,type SentenceChallengeScore}from"./lib/quiz";
 import{PersonalModel}from"./lib/personal-model";
 import{VisionBridge}from"./lib/vision-bridge";
-import{ARROW_GRID,FUNCTION_CLUSTERS,MAC_BOTTOM_ROW,MAC_ROWS,NAVIGATION_GRID,NUMPAD_GRID,WINDOWS_BOTTOM_ROW,WINDOWS_COPILOT_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
+import{ARROW_GRID,FUNCTION_CLUSTERS,MAC_BOTTOM_ROW,MAC_FUNCTION_CLUSTERS,MAC_ROWS,NAVIGATION_GRID,NUMPAD_GRID,WINDOWS_BOTTOM_ROW,WINDOWS_COPILOT_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
 import{fingerClass}from"./lib/finger-map";
 import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateSession,animateWord,animateWordExit}from"./lib/animations";
 import{analyzePractice,analyzeQuiz}from"./lib/ai-coach";
@@ -421,7 +421,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
         <div className="keyboard-stage">
           <div className={"keyboard keyboard-"+keyboardStyle} ref={keyboardRef} aria-label={keyboardStyle==="windows"?"Full-size Windows keyboard visualization":"Full-size Mac keyboard visualization"}>
             <div className="function-clusters">
-              {FUNCTION_CLUSTERS.map((cluster,index)=><div className={"function-cluster function-cluster-"+index} key={"cluster-"+index}>{cluster.map(key=>
+              {(keyboardStyle==="mac"?MAC_FUNCTION_CLUSTERS:FUNCTION_CLUSTERS).map((cluster,index)=><div className={"function-cluster function-cluster-"+index} key={"cluster-"+index}>{cluster.map(key=>
                 <div key={key.k} data-key={key.k} className="key function-key" style={{flex:key.w??1}}>
                   <span className="key-glyph">{key.glyph??""}</span><span className="key-label">{key.label}</span>
                 </div>
