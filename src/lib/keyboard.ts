@@ -17,6 +17,28 @@ export const FUNCTION_CLUSTERS:KeyDef[][]=[
   [{k:"f9",label:"F9"},{k:"f10",label:"F10"},{k:"f11",label:"F11"},{k:"f12",label:"F12"}]
 ];
 
+export const MAC_FUNCTION_CLUSTERS:KeyDef[][]=[
+  [{k:"escape",label:"Esc",glyph:"⎋",kind:"action"}],
+  [
+    {k:"f1",label:"F1",glyph:"☼−"},
+    {k:"f2",label:"F2",glyph:"☼+"},
+    {k:"f3",label:"F3",glyph:"⌘·"},
+    {k:"f4",label:"F4",glyph:"✦"}
+  ],
+  [
+    {k:"f5",label:"F5",glyph:"⌨−"},
+    {k:"f6",label:"F6",glyph:"⌨+"},
+    {k:"f7",label:"F7",glyph:"◀◀"},
+    {k:"f8",label:"F8",glyph:"▶∥"}
+  ],
+  [
+    {k:"f9",label:"F9",glyph:"▶▶"},
+    {k:"f10",label:"F10",glyph:"🔇"},
+    {k:"f11",label:"F11",glyph:"🔉"},
+    {k:"f12",label:"F12",glyph:"🔊"}
+  ]
+];
+
 export const WINDOWS_NUMBER_ROW:KeyDef[]=[
   {k:"backquote",label:"`",glyph:"~"},
   {k:"1",label:"1",glyph:"!"},{k:"2",label:"2",glyph:"@"},{k:"3",label:"3",glyph:"#"},
