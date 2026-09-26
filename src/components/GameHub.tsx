@@ -2,7 +2,7 @@ import{Peer}from"peerjs";
 import type{DataConnection}from"peerjs";
 import{ArrowLeft,ChevronRight,Gamepad2,Hash,Play,RotateCcw,Share2,Swords,Trophy,Users,X,Zap}from"lucide-react";
 import{useEffect,useMemo,useRef,useState,type ReactNode}from"react";
-import{CASCADE_KEYS,PRECISION_WORDS,SPRINT_PASSAGES,cascadeScore,chooseItem,duelPassageForCode,loadGameStats,precisionScore,saveGameResult,sprintScore}from"../lib/games";
+import{CASCADE_KEYS,PRECISION_WORDS,SPRINT_PASSAGES,cascadeScore,chooseItem,duelPassageForCode,loadGameStats,precisionScore,reportGameWpm,saveGameResult,sprintScore}from"../lib/games";
 import{isValidUsername,loadGuestUsername,sanitizeUsername,saveGuestUsername}from"../lib/social";
 
 type HubGame="sprint"|"cascade"|"precision"|"duel";
@@ -139,7 +139,7 @@ function TypingSprint({onExit}:{onExit:()=>void}){
     const accuracy=total?correct/total:0;
     setScore(nextScore);setResult({score:nextScore,wpm,accuracy});
     setStatus("finished");
-    saveGameResult("sprint",nextScore);
+    saveGameResult("sprint",nextScore);reportGameWpm(wpm);
   }
 
   function handleKey(event:React.KeyboardEvent<HTMLTextAreaElement>){
@@ -316,7 +316,7 @@ function PrecisionRun({onExit}:{onExit:()=>void}){
     finishedRef.current=true;
     const wpm=(correctWords)/(Math.max(1,(Date.now()-startAt)/60000));
     const final=precisionScore(correctWords,totalWords,wpm);
-    setFinalScore(final);setStatus("finished");saveGameResult("precision",final);
+    setFinalScore(final);setStatus("finished");saveGameResult("precision",final);reportGameWpm(wpm);
   }
   function handleKey(event:React.KeyboardEvent<HTMLInputElement>){
     if(status!=="playing")return;
@@ -567,9 +567,9 @@ function DuelRace({target,startsAt,localName,opponentName,opponentProgress,sendP
     if(finished)return;
     if(elapsed>=DUEL_LIMIT_MS){
       setFinished(true);
-      if(!resultSent.current){resultSent.current=true;resultHandler.current({name:localName,wpm,accuracy,elapsedMs:DUEL_LIMIT_MS,completed:false})}
+      if(!resultSent.current){resultSent.current=true;reportGameWpm(wpm);resultHandler.current({name:localName,wpm,accuracy,elapsedMs:DUEL_LIMIT_MS,completed:false})}
     }
-  },[elapsed,finished,localName,wpm,accuracy,onResult]);
+  },[elapsed,finished,localName,wpm,accuracy]);
 
   function handleKey(event:React.KeyboardEvent<HTMLTextAreaElement>){
     if(!active||finished)return;
