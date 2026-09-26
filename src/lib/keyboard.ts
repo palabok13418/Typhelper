@@ -122,34 +122,60 @@ export const MAC_BOTTOM_ROW:KeyDef[]=[
   {k:"right-ctrl",label:"Control",glyph:"⌃",w:1.25,kind:"modifier"}
 ];
 
+export const WINDOWS_LAPTOP_FUNCTION_ROW:KeyDef[]=[
+  {k:"escape",label:"Esc",glyph:"⎋",w:1.15,kind:"action"},
+  {k:"f1",label:"F1",w:1},{k:"f2",label:"F2",w:1},{k:"f3",label:"F3",w:1},{k:"f4",label:"F4",w:1},
+  {k:"f5",label:"F5",w:1},{k:"f6",label:"F6",w:1},{k:"f7",label:"F7",w:1},{k:"f8",label:"F8",w:1},
+  {k:"f9",label:"F9",w:1},{k:"f10",label:"F10",w:1},{k:"f11",label:"F11",w:1},{k:"f12",label:"F12",w:1},
+  {k:"printscreen",label:"PrtSc",glyph:"⎙",w:1.05,kind:"action"},
+  {k:"delete",label:"Del",glyph:"⌫",w:1.05,kind:"action"}
+];
+
+export const MAC_LAPTOP_FUNCTION_ROW:KeyDef[]=[
+  {k:"escape",label:"Esc",glyph:"⎋",w:1.15,kind:"action"},
+  {k:"f1",label:"F1",glyph:"☼−",w:1},
+  {k:"f2",label:"F2",glyph:"☼+",w:1},
+  {k:"f3",label:"F3",glyph:"⌘·",w:1},
+  {k:"f4",label:"F4",glyph:"✦",w:1},
+  {k:"f5",label:"F5",glyph:"⌨−",w:1},
+  {k:"f6",label:"F6",glyph:"⌨+",w:1},
+  {k:"f7",label:"F7",glyph:"◀◀",w:1},
+  {k:"f8",label:"F8",glyph:"▶∥",w:1},
+  {k:"f9",label:"F9",glyph:"▶▶",w:1},
+  {k:"f10",label:"F10",glyph:"🔇",w:1},
+  {k:"f11",label:"F11",glyph:"🔉",w:1},
+  {k:"f12",label:"F12",glyph:"🔊",w:1},
+  {k:"touch-id",label:"Touch ID",glyph:"◉",w:1.05,kind:"action"}
+];
+
 export const WINDOWS_LAPTOP_BOTTOM_ROW:KeyDef[]=[
-  {k:"left-fn",label:"Fn",glyph:"fn",w:1,kind:"modifier"},
-  {k:"left-ctrl",label:"Ctrl",glyph:"⌃",w:1,kind:"modifier"},
-  {k:"win",label:"Windows",glyph:"⊞",w:1,kind:"modifier"},
-  {k:"left-alt",label:"Alt",glyph:"Alt",w:1,kind:"modifier"},
-  {k:"space",label:"Space",glyph:"",w:6.5,kind:"modifier"},
-  {k:"right-alt",label:"Alt",glyph:"Alt",w:1,kind:"modifier"},
-  {k:"right-ctrl",label:"Ctrl",glyph:"⌃",w:1,kind:"modifier"}
+  {k:"left-ctrl",label:"Ctrl",glyph:"⌃",w:1.05,kind:"modifier"},
+  {k:"left-fn",label:"Fn",glyph:"fn",w:1.05,kind:"modifier"},
+  {k:"win",label:"Windows",glyph:"⊞",w:1.05,kind:"modifier"},
+  {k:"left-alt",label:"Alt",glyph:"Alt",w:1.05,kind:"modifier"},
+  {k:"space",label:"Space",glyph:"",w:5.9,kind:"modifier"},
+  {k:"right-alt",label:"Alt",glyph:"Alt",w:1.05,kind:"modifier"},
+  {k:"right-ctrl",label:"Ctrl",glyph:"⌃",w:1.05,kind:"modifier"}
 ];
 
 export const WINDOWS_LAPTOP_COPILOT_BOTTOM_ROW:KeyDef[]=[
-  {k:"left-fn",label:"Fn",glyph:"fn",w:1,kind:"modifier"},
-  {k:"left-ctrl",label:"Ctrl",glyph:"⌃",w:1,kind:"modifier"},
-  {k:"win",label:"Windows",glyph:"⊞",w:1,kind:"modifier"},
-  {k:"left-alt",label:"Alt",glyph:"Alt",w:1,kind:"modifier"},
-  {k:"space",label:"Space",glyph:"",w:6.5,kind:"modifier"},
-  {k:"right-alt",label:"Alt",glyph:"Alt",w:1,kind:"modifier"},
-  {k:"copilot",label:"Copilot",glyph:"✦",w:1,kind:"modifier"}
+  {k:"left-ctrl",label:"Ctrl",glyph:"⌃",w:1.05,kind:"modifier"},
+  {k:"left-fn",label:"Fn",glyph:"fn",w:1.05,kind:"modifier"},
+  {k:"win",label:"Windows",glyph:"⊞",w:1.05,kind:"modifier"},
+  {k:"left-alt",label:"Alt",glyph:"Alt",w:1.05,kind:"modifier"},
+  {k:"space",label:"Space",glyph:"",w:5.9,kind:"modifier"},
+  {k:"right-alt",label:"Alt",glyph:"Alt",w:1.05,kind:"modifier"},
+  {k:"copilot",label:"Copilot",glyph:"✦",w:1.05,kind:"modifier"}
 ];
 
 export const MAC_LAPTOP_BOTTOM_ROW:KeyDef[]=[
-  {k:"left-fn",label:"Fn",glyph:"fn",w:1,kind:"modifier"},
-  {k:"left-ctrl",label:"Control",glyph:"⌃",w:1,kind:"modifier"},
-  {k:"left-option",label:"Option",glyph:"⌥",w:1,kind:"modifier"},
-  {k:"left-command",label:"Command",glyph:"⌘",w:1,kind:"modifier"},
-  {k:"space",label:"Space",glyph:"",w:6.5,kind:"modifier"},
-  {k:"right-command",label:"Command",glyph:"⌘",w:1,kind:"modifier"},
-  {k:"right-option",label:"Option",glyph:"⌥",w:1,kind:"modifier"}
+  {k:"left-fn",label:"Fn",glyph:"fn",w:1.05,kind:"modifier"},
+  {k:"left-ctrl",label:"Control",glyph:"⌃",w:1.05,kind:"modifier"},
+  {k:"left-option",label:"Option",glyph:"⌥",w:1.05,kind:"modifier"},
+  {k:"left-command",label:"Command",glyph:"⌘",w:1.05,kind:"modifier"},
+  {k:"space",label:"Space",glyph:"",w:6.15,kind:"modifier"},
+  {k:"right-command",label:"Command",glyph:"⌘",w:1.05,kind:"modifier"},
+  {k:"right-option",label:"Option",glyph:"⌥",w:1.05,kind:"modifier"}
 ];
 
 export const NAVIGATION_GRID:KeyDef[]=[
