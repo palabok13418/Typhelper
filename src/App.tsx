@@ -371,7 +371,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
   function finishQuiz(result:QuizResult,targetText:string,answer:string){
     active.current=0;
     checkinTriggered.current=false;
-    setP(current=>({...current,activeSeconds:0,bestScore:Math.max(current.bestScore,result.score),skillMap:learn(current.skillMap,targetText,answer),history:[result,...current.history].slice(0,30)}));
+    setP(current=>({...current,activeSeconds:0,bestScore:Math.max(current.bestScore,result.score),bestWpm:Math.max(current.bestWpm,result.stats.wpm),skillMap:learn(current.skillMap,targetText,answer),history:[result,...current.history].slice(0,30)}));
   }
 
   function renderKeys(row:KeyDef[],rowName:string){
@@ -382,6 +382,17 @@ export default function App({clerk=false}:{clerk?:boolean}){
       </div>
     })}</div>
   }
+
+  useEffect(()=>{
+    const onGameWpm=(event:Event)=>{
+      const detail=(event as CustomEvent<{wpm?:unknown}>).detail;
+      const wpm=typeof detail?.wpm==="number"&&Number.isFinite(detail.wpm)?detail.wpm:0;
+      if(wpm<=0)return;
+      setP(current=>current.bestWpm>=wpm?current:{...current,bestWpm:Math.min(300,Math.round(wpm))});
+    };
+    window.addEventListener("typhelper-game-wpm",onGameWpm);
+    return()=>window.removeEventListener("typhelper-game-wpm",onGameWpm);
+  },[]);
 
   return <div className="app">
     <header className="topbar">
@@ -604,11 +615,14 @@ function AccountCloudSync({progress,onHydrate,onCountChange,onIdentityChange}:{p
   const{isLoaded,isSignedIn,user}=useUser();
   const timer=useRef<number|null>(null);
   const running=useRef(false);
+  const lastSyncAt=useRef(0);
   const currentProgress=useRef(progress);
   useEffect(()=>{currentProgress.current=progress},[progress]);
+
   useEffect(()=>{
     if(!isLoaded||!isSignedIn||!user)return;
     let cancelled=false;
+
     const readWords=(value:unknown)=>{
       if(!Array.isArray(value))return[];
       return value.filter((word):word is string=>typeof word==="string"&&word.trim().length>0).map(word=>word.trim().toLowerCase());
@@ -624,6 +638,12 @@ function AccountCloudSync({progress,onHydrate,onCountChange,onIdentityChange}:{p
       }
       return result;
     };
+    const sameProgress=(a:Progress,b:Progress)=>{
+      return a.activeSeconds===b.activeSeconds&&a.totalPracticeWords===b.totalPracticeWords&&a.bestWpm===b.bestWpm&&a.bestScore===b.bestScore
+        &&JSON.stringify(a.skillMap)===JSON.stringify(b.skillMap)
+        &&JSON.stringify(a.history)===JSON.stringify(b.history);
+    };
+
     const sync=async()=>{
       if(cancelled||running.current)return;
       running.current=true;
@@ -631,10 +651,13 @@ function AccountCloudSync({progress,onHydrate,onCountChange,onIdentityChange}:{p
         const metadata=user.unsafeMetadata as Record<string,unknown>|undefined;
         const typhelper=metadata?.typhelper;
         const remoteProgress=typhelper&&typeof typhelper==="object"?normalizeCloudProgress((typhelper as Record<string,unknown>).progress):null;
-        const mergedProgress=remoteProgress?mergeProgress(currentProgress.current,remoteProgress):currentProgress.current;
+        const base=currentProgress.current;
+        const mergedProgress=remoteProgress?mergeProgress(base,remoteProgress):base;
+
         const remoteWords=typhelper&&typeof typhelper==="object"?readWords((typhelper as Record<string,unknown>).generatedWords):[];
         const localWords=loadGeneratedWords();
         const mergedWords=[...new Set([...remoteWords,...localWords])].slice(-1000);
+
         const remoteGames=typhelper&&typeof typhelper==="object"?readGameStats((typhelper as Record<string,unknown>).gameStats):{};
         const localGames=loadGameStats();
         const mergedGames:GameStats={};
@@ -643,44 +666,57 @@ function AccountCloudSync({progress,onHydrate,onCountChange,onIdentityChange}:{p
           const local=localGames[id]??{plays:0,best:0,lastPlayed:0};
           mergedGames[id]={plays:Math.max(remote.plays,local.plays),best:Math.max(remote.best,local.best),lastPlayed:Math.max(remote.lastPlayed,local.lastPlayed)};
         }
-        saveGeneratedWords(mergedWords);
+
+        if(!sameProgress(base,mergedProgress))onHydrate(mergedProgress);
+        const localWordsKey=JSON.stringify(localWords);
+        if(localWordsKey!==JSON.stringify(mergedWords))saveGeneratedWords(mergedWords);
         onCountChange(mergedWords.length);
-        onHydrate(mergedProgress);
         onIdentityChange(user.username||user.firstName||user.fullName||null);
         await user.updateMetadata({
           unsafeMetadata:{
             typhelper:{
               schemaVersion:3,
-              progress:{...mergedProgress,history:mergedProgress.history.slice(0,30)},
+              progress:{...mergedProgress,activeSeconds:base.activeSeconds,history:mergedProgress.history.slice(0,30)},
               generatedWords:mergedWords,
               gameStats:mergedGames
             }
           }
         });
+        lastSyncAt.current=Date.now();
       }catch(error){
         console.warn("[Typhelper Account Sync]",error);
       }finally{
         running.current=false;
       }
     };
+
     const schedule=()=>{
-      if(timer.current!==null)window.clearTimeout(timer.current);
-      timer.current=window.setTimeout(()=>void sync(),1500);
+      if(timer.current!==null)return;
+      const delay=Math.max(0,8000-(Date.now()-lastSyncAt.current));
+      timer.current=window.setTimeout(()=>{
+        timer.current=null;
+        void sync();
+      },delay);
     };
+
     void sync().finally(()=>{
       if(cancelled)return;
       window.addEventListener("typhelper-progress-changed",schedule);
       window.addEventListener("typhelper-generated-word",schedule);
       window.addEventListener("typhelper-game-stats-changed",schedule);
+      window.addEventListener("pagehide",schedule);
     });
+
     return()=>{
       cancelled=true;
       window.removeEventListener("typhelper-progress-changed",schedule);
       window.removeEventListener("typhelper-generated-word",schedule);
       window.removeEventListener("typhelper-game-stats-changed",schedule);
+      window.removeEventListener("pagehide",schedule);
       if(timer.current!==null)window.clearTimeout(timer.current);
     };
   },[isLoaded,isSignedIn,user]);
+
   return null;
 }
 
