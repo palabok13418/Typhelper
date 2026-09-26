@@ -1,10 +1,9 @@
 import{Peer}from"peerjs";
 import type{DataConnection}from"peerjs";
-import{ArrowLeft,Check,ChevronRight,Copy,Gamepad2,Hash,Play,RotateCcw,Share2,Swords,Trophy,Users,X,Zap}from"lucide-react";
+import{ArrowLeft,ChevronRight,Gamepad2,Hash,Play,RotateCcw,Share2,Swords,Trophy,Users,X,Zap}from"lucide-react";
 import{useEffect,useMemo,useRef,useState}from"react";
-import{CASCADE_KEYS,DUEL_PASSAGES,DUEL_PASSAGES as duelPassages,GAME_WORDS as _GAME_WORDS,PRECISION_WORDS,SPRINT_PASSAGES,cascadeScore,chooseItem,duelPassageForCode,loadGameStats,precisionScore,saveGameResult,sprintScore,type GameId}from"../lib/games";
+import{CASCADE_KEYS,PRECISION_WORDS,SPRINT_PASSAGES,cascadeScore,chooseItem,duelPassageForCode,loadGameStats,precisionScore,saveGameResult,sprintScore}from"../lib/games";
 import{isValidUsername,loadGuestUsername,sanitizeUsername,saveGuestUsername}from"../lib/social";
-import{shareMilestone}from"../lib/milestones";
 
 type HubGame="sprint"|"cascade"|"precision"|"duel";
 interface Props{open:boolean;close:()=>void;accountUsername:string|null}
