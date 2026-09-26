@@ -1,20 +1,25 @@
 import{SignInButton,SignUpButton,UserButton,useUser}from"@clerk/react";
-import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Clock3,Gauge,Keyboard,Laptop,Lightbulb,Settings2,UserPlus,X}from"lucide-react";
+import{Activity,BookOpenText,Camera,Check,ChevronRight,CircleHelp,Gamepad2,Gauge,Keyboard,Laptop,Lightbulb,Settings2,UserPlus,X}from"lucide-react";
 import{useCallback,useEffect,useRef,useState,type ReactNode}from"react";
-import{load,loadGeneratedWords,rememberGeneratedWord,save,saveGeneratedWords}from"./lib/storage";
+import{load,loadGeneratedWords,mergeProgress,normalizeCloudProgress,rememberGeneratedWord,save,saveGeneratedWords}from"./lib/storage";
 import{learn,randomWord}from"./lib/typing";
 import{GazeMonitor}from"./lib/gaze";
 import{scoreWebNN}from"./lib/webnn";
 import{createQuiz,nextChallengeWord,scoreQuiz,scoreSentenceChallenge,type ChallengeWord,type QuizScore,type SentenceChallengeScore}from"./lib/quiz";
 import{PersonalModel}from"./lib/personal-model";
 import{VisionBridge}from"./lib/vision-bridge";
-import{FUNCTION_ROW,MAC_BOTTOM_ROW,MAC_ROWS,WINDOWS_BOTTOM_ROW,WINDOWS_COPILOT_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
+import{ARROW_GRID,FUNCTION_CLUSTERS,MAC_BOTTOM_ROW,MAC_FUNCTION_CLUSTERS,MAC_ROWS,NAVIGATION_GRID,NUMPAD_GRID,WINDOWS_BOTTOM_ROW,WINDOWS_COPILOT_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
 import{fingerClass}from"./lib/finger-map";
 import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateSession,animateWord,animateWordExit}from"./lib/animations";
 import{analyzePractice,analyzeQuiz}from"./lib/ai-coach";
 import{connectPhysicalKeyboard,hasWebHID,observeKeyboardKey,readKeyboardProfile,type KeyboardProfile}from"./lib/keyboard-profile";
 import{readPerformanceMode,savePerformanceMode,performanceModeLabel,type PerformanceMode}from"./lib/performance";
 import{fetchPracticeBatch,fetchSimpleDefinition,fetchWordDetails,type PracticeWord,type WordDetails}from"./lib/word-api";
+import MilestoneToast from"./components/MilestoneToast";
+import GameHub from"./components/GameHub";
+import{crossedMilestones,milestoneProgress}from"./lib/milestones";
+import{loadGuestUsername}from"./lib/social";
+import{loadGameStats,type GameStats}from"./lib/games";
 import Counter from "./components/Counter";
 import CountUp from "./components/CountUp";
 import type{GazeState,Progress,QuizResult}from"./types";
@@ -41,6 +46,9 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const[quiz,setQuiz]=useState(false);
   const[generatedWordCount,setGeneratedWordCount]=useState(()=>loadGeneratedWords().length);
   const[help,setHelp]=useState(false);
+  const[gamesOpen,setGamesOpen]=useState(false);
+  const[accountUsername,setAccountUsername]=useState<string|null>(null);
+  const[milestoneQueue,setMilestoneQueue]=useState<ReturnType<typeof crossedMilestones>>([]);
   const[settings,setSettings]=useState(false);
   const[keyboardStyle,setKeyboardStyle]=useState<KeyboardStyle>(()=>localStorage.getItem("typing-pro-keyboard-style")==="mac"?"mac":"windows");
   const[windowsLayout,setWindowsLayout]=useState<WindowsLayout>(()=>localStorage.getItem("typhelper-windows-layout")==="copilot"?"copilot":"legacy");
@@ -75,6 +83,17 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const practiceAiBusy=useRef(false);
   const workspaceRef=useRef<HTMLElement>(null);
   const checkinTriggered=useRef(false);
+  const progressRef=useRef(p);
+  const lastMilestoneSnapshot=useRef({words:p.totalPracticeWords,wpm:p.bestWpm});
+  useEffect(()=>{progressRef.current=p},[p]);
+  useEffect(()=>{
+    const previous=lastMilestoneSnapshot.current;
+    if(previous.words!==p.totalPracticeWords||previous.wpm!==p.bestWpm){
+      const crossed=crossedMilestones(previous.words,p.totalPracticeWords,previous.wpm,p.bestWpm);
+      if(crossed.length)setMilestoneQueue(current=>[...current,...crossed]);
+      lastMilestoneSnapshot.current={words:p.totalPracticeWords,wpm:p.bestWpm};
+    }
+  },[p.totalPracticeWords,p.bestWpm]);
 
   useEffect(()=>{skills.current=p.skillMap},[p.skillMap]);
 
@@ -248,7 +267,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
   }
   useEffect(()=>{
     const onKey=(event:KeyboardEvent)=>{
-      if(quiz||account||help||settings||detailsOpen)return;
+      if(quiz||account||help||settings||detailsOpen||gamesOpen)return;
       if(event.metaKey||event.ctrlKey||event.altKey)return;
       if(event.key==="Backspace"){
         event.preventDefault();
@@ -290,8 +309,10 @@ export default function App({clerk=false}:{clerk?:boolean}){
         const duration=now-wordStarted.current;
         learner.current?.record({kind:"word",word,correct,duration});
         recentPractice.current=[...recentPractice.current,{word,correct,duration}].slice(-30);
-        const nextTotal=p.totalPracticeWords+1;
-        setP(current=>({...current,totalPracticeWords:current.totalPracticeWords+1}));
+        const wordMinutes=Math.max(.4/60,duration/60000);
+        const wordWpm=Math.round(Math.min(240,(word.length/5)/wordMinutes));
+        const nextTotal=progressRef.current.totalPracticeWords+1;
+        setP(current=>({...current,totalPracticeWords:current.totalPracticeWords+1,bestWpm:Math.max(current.bestWpm,wordWpm)}));
         if(nextTotal%10===0)void runPracticeCoach();
         hadError.current=false;
         const next=wordQueue.current.shift()??{word:randomWord(skills.current,word),definition:null,isNew:false};
@@ -311,7 +332,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
     };
     window.addEventListener("keydown",onKey);
     return()=>window.removeEventListener("keydown",onKey);
-  },[word,index,quiz,account,help,settings,detailsOpen]);
+  },[word,index,quiz,account,help,settings,detailsOpen,gamesOpen]);
 
   const target=nextKey(word,index);
   const percent=word ? Math.min(100,Math.round((index/word.length)*100)) : 0;
@@ -350,15 +371,28 @@ export default function App({clerk=false}:{clerk?:boolean}){
   function finishQuiz(result:QuizResult,targetText:string,answer:string){
     active.current=0;
     checkinTriggered.current=false;
-    setP(current=>({...current,activeSeconds:0,bestScore:Math.max(current.bestScore,result.score),skillMap:learn(current.skillMap,targetText,answer),history:[result,...current.history].slice(0,30)}));
+    setP(current=>({...current,activeSeconds:0,bestScore:Math.max(current.bestScore,result.score),bestWpm:Math.max(current.bestWpm,result.stats.wpm),skillMap:learn(current.skillMap,targetText,answer),history:[result,...current.history].slice(0,30)}));
   }
 
   function renderKeys(row:KeyDef[],rowName:string){
     return <div className="key-row" key={rowName}>{row.map(key=>{
       const finger=fingerColors?fingerClass(key.k):"";
-      return <div key={key.k} data-key={key.k} className={"key "+(key.kind==="modifier"?"modifier-key ":"")+finger+(key.k===target?" target":"")} style={{flex:key.w??1}}>{key.label??key.k.toUpperCase()}</div>
+      return <div key={key.k} data-key={key.k} className={"key "+(key.kind==="modifier"?"modifier-key ":"")+finger+(key.k===target?" target":"")} style={{flex:key.w??1,gridColumn:key.gridColumn,gridRow:key.gridRow}}>
+        <span className="key-glyph">{key.glyph??""}</span><span className="key-label">{key.label??key.k.toUpperCase()}</span>
+      </div>
     })}</div>
   }
+
+  useEffect(()=>{
+    const onGameWpm=(event:Event)=>{
+      const detail=(event as CustomEvent<{wpm?:unknown}>).detail;
+      const wpm=typeof detail?.wpm==="number"&&Number.isFinite(detail.wpm)?detail.wpm:0;
+      if(wpm<=0)return;
+      setP(current=>current.bestWpm>=wpm?current:{...current,bestWpm:Math.min(300,Math.round(wpm))});
+    };
+    window.addEventListener("typhelper-game-wpm",onGameWpm);
+    return()=>window.removeEventListener("typhelper-game-wpm",onGameWpm);
+  },[]);
 
   return <div className="app">
     <header className="topbar">
@@ -369,7 +403,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
       <div className="right-controls">
         <button className="icon-action" aria-label="Help" onClick={()=>setHelp(true)}><CircleHelp size={17}/></button>
         <button className="icon-action" aria-label="Settings" onClick={()=>setSettings(true)}><Settings2 size={17}/></button>
-        <div className="next-check"><Clock3 size={14}/><span>{p.activeSeconds>=CHECKIN_INTERVAL_SECONDS?"check-in time":"check-in in "+formatTime(Math.max(0,CHECKIN_INTERVAL_SECONDS-p.activeSeconds))}</span></div>
+
       </div>
     </header>
 
@@ -385,29 +419,66 @@ export default function App({clerk=false}:{clerk?:boolean}){
         </div>
 
         <div className="keyboard-stage">
-          <div className="keyboard" ref={keyboardRef} aria-label={keyboardStyle==="windows"?"Windows keyboard visualization":"Mac keyboard visualization"}>
-            <div className="function-row">{FUNCTION_ROW.map(key=><div key={key.k} className="key function-key" data-key={key.k} style={{flex:key.w??1}}>{key.label}</div>)}</div>
-            {renderKeys(WINDOWS_NUMBER_ROW,"number-row")}
-            {rows.map((row,i)=>renderKeys(row,"main-row-"+i))}
-            {renderKeys(bottom,"bottom-row")}
+          <div className={"keyboard keyboard-"+keyboardStyle} ref={keyboardRef} aria-label={keyboardStyle==="windows"?"Full-size Windows keyboard visualization":"Full-size Mac keyboard visualization"}>
+            <div className="function-clusters">
+              {(keyboardStyle==="mac"?MAC_FUNCTION_CLUSTERS:FUNCTION_CLUSTERS).map((cluster,index)=><div className={"function-cluster function-cluster-"+index} key={"cluster-"+index}>{cluster.map(key=>
+                <div key={key.k} data-key={key.k} className="key function-key" style={{flex:key.w??1}}>
+                  <span className="key-glyph">{key.glyph??""}</span><span className="key-label">{key.label}</span>
+                </div>
+              )}</div>)}
+            </div>
+            <div className="keyboard-body-grid">
+              <div className="main-keyboard">
+                {renderKeys(WINDOWS_NUMBER_ROW,"number-row")}
+                {rows.map((row,i)=>renderKeys(row,"main-row-"+i))}
+                <div className="key-row bottom-row">{bottom.map(key=><div key={key.k} data-key={key.k} className={"key "+(key.kind==="modifier"?"modifier-key ":"")+(fingerColors?fingerClass(key.k):"")+(key.k===target?" target":"")} style={{flex:key.w??1}}>
+                  <span className="key-glyph">{key.glyph??""}</span><span className="key-label">{key.label??key.k.toUpperCase()}</span>
+                </div>)}</div>
+              </div>
+              <div className="navigation-keyboard">
+                <div className="nav-grid">{NAVIGATION_GRID.map(key=><div key={key.k} data-key={key.k} className="key nav-key"><span className="key-glyph">{key.glyph??""}</span><span className="key-label">{key.label}</span></div>)}</div>
+                <div className="arrow-grid">{ARROW_GRID.map(key=><div key={key.k} data-key={key.k} className="key arrow-key"><span className="key-glyph">{key.glyph}</span></div>)}</div>
+              </div>
+              <div className="numpad-keyboard">
+                {NUMPAD_GRID.map(key=><div key={key.k} data-key={key.k} className={"key num-key "+(key.rowSpan?"row-span":"")} style={{gridColumn:key.k==="numpad-0"?"span 2":key.gridColumn,gridRow:key.rowSpan?"span "+key.rowSpan:key.gridRow}}>
+                  <span className="key-glyph">{key.glyph??""}</span><span className="key-label">{key.label}</span>
+                </div>)}
+              </div>
+            </div>
           </div>
           <div className="keyboard-note"><Activity size={13}/><span>{physicalKeyboard?.exactDevice?physicalKeyboard.name:(keyboardStyle==="windows"?"Windows keyboard":"Mac keyboard")} · the trainer learns from every correct and incorrect press</span></div>
         </div>
       </section>
 
       <aside className="practice-side">
-        <div className="mini-card"><div className="mini-label">Words</div><div className="big-stat stat-counter">
-          {animateWordsOnEntry
-            ?<CountUp to={entryWordCount.current} from={0} duration={1.4} separator="," className="count-up-text" onEnd={finishEntryCountUp}/>
-            :<Counter value={p.totalPracticeWords} places={counterPlaces(p.totalPracticeWords)} fontSize={43} padding={0} gap={1} horizontalPadding={0} textColor="#202124" fontWeight={760} gradientHeight={0}/>}
-        </div><div className="muted">completed this device</div></div>
-        <div className="mini-card"><div className="mini-label">Live WPM</div><div className="big-stat stat-counter"><Counter value={liveWpm} places={counterPlaces(liveWpm)} fontSize={43} padding={0} gap={1} horizontalPadding={0} textColor="#202124" fontWeight={760} gradientHeight={0}/></div><div className="muted">current typing speed</div></div>
-        <div className="mini-card"><div className="mini-label">Check-in</div><div className="check-row"><span>{p.activeSeconds>=CHECKIN_INTERVAL_SECONDS?"Check-in time":"Next check-in"}</span><strong>{formatTime(Math.max(0,CHECKIN_INTERVAL_SECONDS-p.activeSeconds))}</strong></div><button className="solid-action" onClick={()=>setQuiz(true)}><span>{p.activeSeconds>=CHECKIN_INTERVAL_SECONDS?"Start check-in":"Take check-in early"}</span><ChevronRight size={16}/></button></div>
-        <div className="mini-card"><div className="mini-label">Saved words</div><div className="check-row"><span>{generatedWordCount.toLocaleString()} generated</span><BookOpenText size={15}/></div><div className="muted">{clerk?"Synced to your account when signed in":"Saved on this device"}</div></div>
+        <div className="mini-card">
+          <div className="mini-label">Words</div>
+          <div className="big-stat stat-counter">{animateWordsOnEntry?<CountUp to={entryWordCount.current} from={0} duration={1.4} separator="," className="count-up-text" onEnd={finishEntryCountUp}/>:<Counter value={p.totalPracticeWords} places={counterPlaces(p.totalPracticeWords)} fontSize={43} padding={0} gap={1} horizontalPadding={0} textColor="#202124" fontWeight={760} gradientHeight={0}/>}</div>
+          <div className="muted">completed across your practice</div>
+          <MilestoneBar type="words" value={p.totalPracticeWords}/>
+        </div>
+        <div className="mini-card">
+          <div className="mini-label">Live WPM</div>
+          <div className="big-stat stat-counter"><Counter value={liveWpm} places={counterPlaces(liveWpm)} fontSize={43} padding={0} gap={1} horizontalPadding={0} textColor="#202124" fontWeight={760} gradientHeight={0}/></div>
+          <div className="muted">best WPM {p.bestWpm}</div>
+          <MilestoneBar type="wpm" value={p.bestWpm}/>
+        </div>
+        <div className="mini-card">
+          <div className="mini-label">Check-in</div>
+          <div className="check-row"><span>{p.activeSeconds>=CHECKIN_INTERVAL_SECONDS?"Check-in time":"Next check-in"}</span><strong>{formatTime(Math.max(0,CHECKIN_INTERVAL_SECONDS-p.activeSeconds))}</strong></div>
+          <button className="solid-action" onClick={()=>setQuiz(true)}><span>{p.activeSeconds>=CHECKIN_INTERVAL_SECONDS?"Start check-in":"Take check-in early"}</span><ChevronRight size={16}/></button>
+        </div>
+        <div className="mini-card games-card">
+          <div className="mini-label">Games</div>
+          <div className="games-card-head"><div className="games-card-icon"><Gamepad2 size={17}/></div><div><strong>Train without the drill</strong><span>Speed, accuracy, reaction, or a 1v1 Duelity race.</span></div></div>
+          <button className="solid-action" onClick={()=>setGamesOpen(true)}>Open games <ChevronRight size={16}/></button>
+        </div>
       </aside>
     </main>
 
     {account&&<AccountWarning clerk={clerk} close={()=>setAccount(false)}/>}
+    {milestoneQueue[0]&&<MilestoneToast milestone={milestoneQueue[0]} username={accountUsername||loadGuestUsername()||null} onDismiss={()=>setMilestoneQueue(queue=>queue.slice(1))}/>}
+    <GameHub open={gamesOpen} close={()=>setGamesOpen(false)} accountUsername={accountUsername}/>
     {help&&<SimpleModal title="How it works" icon={<CircleHelp size={20}/>} close={()=>setHelp(false)}><p>Type the highlighted letters without looking down. When you pause for a moment, the trainer shows the exact key to press next.</p><p>Each completed word is replaced with another randomized word so practice keeps moving.</p></SimpleModal>}
     {settings&&<SettingsModal
       close={()=>setSettings(false)}
@@ -429,7 +500,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
       setFingerColors={setFingerColors}
     />}
     {detailsOpen&&<WordDetailsModal word={word} details={wordDetails} loading={detailsLoading} error={detailsError} close={closeWordDetails}/>}
-    {clerk&&<AccountWordSync onCountChange={setGeneratedWordCount}/>}
+    {clerk&&<AccountCloudSync progress={p} onHydrate={setP} onCountChange={setGeneratedWordCount} onIdentityChange={setAccountUsername}/>}
     {quiz&&<QuizModal skillMap={p.skillMap} performanceMode={performanceMode} onClose={()=>setQuiz(false)} onRecord={event=>learner.current?.record(event)} onFinish={(result,targetText,answer)=>finishQuiz(result,targetText,answer)}/>}
   </div>
 }
@@ -541,44 +612,121 @@ function SettingsModal({close,keyboardStyle,setKeyboardStyle,windowsLayout,setWi
     </div>
   </div>
 }
-function AccountWordSync({onCountChange}:{onCountChange:(count:number)=>void}){
+function AccountCloudSync({progress,onHydrate,onCountChange,onIdentityChange}:{progress:Progress;onHydrate:(next:Progress)=>void;onCountChange:(count:number)=>void;onIdentityChange:(username:string|null)=>void}){
   const{isLoaded,isSignedIn,user}=useUser();
   const timer=useRef<number|null>(null);
+  const running=useRef(false);
+  const lastSyncAt=useRef(0);
+  const currentProgress=useRef(progress);
+  useEffect(()=>{currentProgress.current=progress},[progress]);
 
   useEffect(()=>{
     if(!isLoaded||!isSignedIn||!user)return;
     let cancelled=false;
+
+    const readWords=(value:unknown)=>{
+      if(!Array.isArray(value))return[];
+      return value.filter((word):word is string=>typeof word==="string"&&word.trim().length>0).map(word=>word.trim().toLowerCase());
+    };
+    const readGameStats=(value:unknown):GameStats=>{
+      if(!value||typeof value!=="object")return{};
+      const result:GameStats={};
+      for(const [id,raw] of Object.entries(value as Record<string,unknown>)){
+        if(!raw||typeof raw!=="object")continue;
+        const entry=raw as Record<string,unknown>;
+        if(typeof entry.plays!=="number"||typeof entry.best!=="number"||typeof entry.lastPlayed!=="number")continue;
+        result[id]={plays:Math.max(0,Math.floor(entry.plays)),best:Math.max(0,Math.floor(entry.best)),lastPlayed:Math.max(0,Math.floor(entry.lastPlayed))};
+      }
+      return result;
+    };
+    const sameProgress=(a:Progress,b:Progress)=>{
+      return a.activeSeconds===b.activeSeconds&&a.totalPracticeWords===b.totalPracticeWords&&a.bestWpm===b.bestWpm&&a.bestScore===b.bestScore
+        &&JSON.stringify(a.skillMap)===JSON.stringify(b.skillMap)
+        &&JSON.stringify(a.history)===JSON.stringify(b.history);
+    };
+    const compactForClerk=(value:Progress):Progress=>{
+      const skillMap=Object.fromEntries(
+        Object.entries(value.skillMap)
+          .sort(([,a],[,b])=>b.attempts-a.attempts||b.lastSeen-a.lastSeen)
+          .slice(0,24)
+      );
+      return{...value,skillMap,history:value.history.slice(0,3)};
+    };
+
     const sync=async()=>{
-      if(cancelled)return;
-      const local=loadGeneratedWords();
-      const metadata=user.unsafeMetadata as Record<string,unknown>|undefined;
-      const typhelper=metadata?.typhelper;
-      const accountWords=typhelper&&typeof typhelper==="object"
-        ?(typhelper as Record<string,unknown>).generatedWords
-        :null;
-      const remote=Array.isArray(accountWords)
-        ?accountWords.filter((word):word is string=>typeof word==="string")
-        :[];
-      const merged=[...new Set([...remote,...local])].slice(-300);
-      saveGeneratedWords(merged);
-      onCountChange(merged.length);
+      if(cancelled||running.current)return;
+      running.current=true;
       try{
-        await (user as any).updateMetadata({
+        const metadata=user.unsafeMetadata as Record<string,unknown>|undefined;
+        const typhelper=metadata?.typhelper;
+        const remoteProgress=typhelper&&typeof typhelper==="object"?normalizeCloudProgress((typhelper as Record<string,unknown>).progress):null;
+        const base=currentProgress.current;
+        const mergedProgress=remoteProgress?mergeProgress(base,remoteProgress):base;
+
+        const remoteWords=typhelper&&typeof typhelper==="object"?readWords((typhelper as Record<string,unknown>).generatedWords):[];
+        const localWords=loadGeneratedWords();
+        const mergedLocalWords=[...new Set([...localWords,...remoteWords])].slice(-2000);
+        const cloudWords=mergedLocalWords.slice(-200);
+
+        const remoteGames=typhelper&&typeof typhelper==="object"?readGameStats((typhelper as Record<string,unknown>).gameStats):{};
+        const localGames=loadGameStats();
+        const mergedGames:GameStats={};
+        for(const id of new Set([...Object.keys(remoteGames),...Object.keys(localGames)])){
+          const remote=remoteGames[id]??{plays:0,best:0,lastPlayed:0};
+          const local=localGames[id]??{plays:0,best:0,lastPlayed:0};
+          mergedGames[id]={plays:Math.max(remote.plays,local.plays),best:Math.max(remote.best,local.best),lastPlayed:Math.max(remote.lastPlayed,local.lastPlayed)};
+        }
+
+        if(!sameProgress(base,mergedProgress))onHydrate(mergedProgress);
+        if(JSON.stringify(localWords)!==JSON.stringify(mergedLocalWords))saveGeneratedWords(mergedLocalWords);
+        onCountChange(mergedLocalWords.length);
+        onIdentityChange(user.username||user.firstName||user.fullName||null);
+        const compacted=compactForClerk(mergedProgress);
+        await user.updateMetadata({
           unsafeMetadata:{
-            typhelper:{generatedWords:merged}
+            typhelper:{
+              schemaVersion:4,
+              progress:{...compacted,activeSeconds:base.activeSeconds},
+              generatedWords:cloudWords,
+              gameStats:mergedGames
+            }
           }
         });
-      }catch{}
+        lastSyncAt.current=Date.now();
+      }catch(error){
+        console.warn("[Typhelper Account Sync]",error);
+      }finally{
+        running.current=false;
+      }
     };
+
     const schedule=()=>{
-      if(timer.current!==null)window.clearTimeout(timer.current);
-      timer.current=window.setTimeout(()=>void sync(),900);
+      if(timer.current!==null)return;
+      const delay=Math.max(0,8000-(Date.now()-lastSyncAt.current));
+      timer.current=window.setTimeout(()=>{
+        timer.current=null;
+        void sync();
+      },delay);
     };
-    void sync();
-    window.addEventListener("typhelper-generated-word",schedule);
+    const flush=()=>{
+      if(timer.current!==null){window.clearTimeout(timer.current);timer.current=null}
+      void sync();
+    };
+
+    void sync().finally(()=>{
+      if(cancelled)return;
+      window.addEventListener("typhelper-progress-changed",schedule);
+      window.addEventListener("typhelper-generated-word",schedule);
+      window.addEventListener("typhelper-game-stats-changed",schedule);
+      window.addEventListener("pagehide",flush);
+    });
+
     return()=>{
       cancelled=true;
+      window.removeEventListener("typhelper-progress-changed",schedule);
       window.removeEventListener("typhelper-generated-word",schedule);
+      window.removeEventListener("typhelper-game-stats-changed",schedule);
+      window.removeEventListener("pagehide",flush);
       if(timer.current!==null)window.clearTimeout(timer.current);
     };
   },[isLoaded,isSignedIn,user]);
@@ -612,6 +760,11 @@ function SimpleModal({title,icon,close,children}:{title:string;icon:ReactNode;cl
   const modal=useRef<HTMLDivElement>(null);
   useEffect(()=>animateModal(modal.current),[]);
   return <div className="overlay"><div className="account-modal" ref={modal}><div className="modal-top"><div><div className="modal-icon">{icon}</div><h2>{title}</h2></div><button className="icon-action" onClick={close} aria-label="Close"><X size={17}/></button></div>{children}<div className="modal-actions"><button className="solid-action" onClick={close}>Done</button></div></div></div>
+}
+
+function MilestoneBar({type,value}:{type:"words"|"wpm";value:number}){
+  const progress=milestoneProgress(type,value);
+  return <div className="milestone-bar"><div className="milestone-bar-top"><span>{progress.next?progress.remaining+" to "+progress.next.title:"milestones complete"}</span><strong>{value.toLocaleString()}</strong></div><div className="milestone-track"><i style={{width:progress.percent+"%"}}/></div></div>
 }
 
 function formOfPhrase(type:string){
