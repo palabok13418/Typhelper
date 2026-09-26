@@ -1,7 +1,7 @@
 import{Peer}from"peerjs";
 import type{DataConnection}from"peerjs";
 import{ArrowLeft,ChevronRight,Gamepad2,Hash,Play,RotateCcw,Share2,Swords,Trophy,Users,X,Zap}from"lucide-react";
-import{useEffect,useMemo,useRef,useState,type ReactNode}from"react";
+import{useEffect,useMemo,useRef,useState,type KeyboardEvent as ReactKeyboardEvent,type ReactNode}from"react";
 import{CASCADE_KEYS,PRECISION_WORDS,SPRINT_PASSAGES,cascadeScore,chooseItem,duelPassageForCode,loadGameStats,precisionScore,reportGameWpm,saveGameResult,sprintScore}from"../lib/games";
 import{isValidUsername,loadGuestUsername,sanitizeUsername,saveGuestUsername}from"../lib/social";
 
@@ -142,7 +142,7 @@ function TypingSprint({onExit}:{onExit:()=>void}){
     saveGameResult("sprint",nextScore);reportGameWpm(wpm);
   }
 
-  function handleKey(event:React.KeyboardEvent<HTMLTextAreaElement>){
+  function handleKey(event:ReactKeyboardEvent<HTMLTextAreaElement>){
     if(status!=="playing")return;
     if(event.ctrlKey||event.metaKey||event.altKey)return;
     event.preventDefault();
@@ -318,7 +318,7 @@ function PrecisionRun({onExit}:{onExit:()=>void}){
     const final=precisionScore(correctWords,totalWords,wpm);
     setFinalScore(final);setStatus("finished");saveGameResult("precision",final);reportGameWpm(wpm);
   }
-  function handleKey(event:React.KeyboardEvent<HTMLInputElement>){
+  function handleKey(event:ReactKeyboardEvent<HTMLInputElement>){
     if(status!=="playing")return;
     if(event.ctrlKey||event.metaKey||event.altKey)return;
     if(event.key==="Backspace"){event.preventDefault();setAnswer(value=>value.slice(0,-1));return}
@@ -571,7 +571,7 @@ function DuelRace({target,startsAt,localName,opponentName,opponentProgress,sendP
     }
   },[elapsed,finished,localName,wpm,accuracy]);
 
-  function handleKey(event:React.KeyboardEvent<HTMLTextAreaElement>){
+  function handleKey(event:ReactKeyboardEvent<HTMLTextAreaElement>){
     if(!active||finished)return;
     if(event.ctrlKey||event.metaKey||event.altKey)return;
     event.preventDefault();
