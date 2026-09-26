@@ -62,6 +62,10 @@ export function loadGameStats():GameStats{
   }
 }
 
+export function reportGameWpm(wpm:number){
+  if(typeof window!=="undefined"&&Number.isFinite(wpm)&&wpm>0)window.dispatchEvent(new CustomEvent("typhelper-game-wpm",{detail:{wpm}}));
+}
+
 export function saveGameResult(game:GameId,score:number){
   try{
     const all=loadGameStats();
