@@ -106,27 +106,28 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .numpad-keyboard .key[style*="span 2"]{height:auto}
 .bottom-row{margin-bottom:0}
 .keyboard-laptop{
-  --key-size:clamp(31px,3.9vw,44px);
-  padding:14px 14px 13px;
-  border-radius:16px;
+  --key-size:clamp(30px,3.2vw,43px);
+  width:min(100%,960px);
+  padding:15px 15px 14px;
+  border-radius:17px;
 }
-.keyboard-laptop .function-clusters{
-  grid-template-columns:.9fr 4fr 4fr 4fr;
-  gap:9px;
-}
-.keyboard-laptop .function-cluster{gap:5px}
-.keyboard-laptop .function-key{height:26px;min-height:26px;border-radius:5px}
-.laptop-body-grid{
+.keyboard-laptop .function-clusters{grid-template-columns:1fr 4fr 4fr 4fr;gap:12px}
+.keyboard-laptop .function-cluster{gap:6px}
+.keyboard-laptop .function-key{height:27px;min-height:27px;border-radius:6px}
+.keyboard-laptop .key-row{gap:4px;margin-bottom:4px}
+.keyboard-laptop .laptop-main{width:100%}
+.keyboard-laptop .laptop-bottom-line{
   display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(94px,.17fr);
-  gap:12px;
+  grid-template-columns:minmax(0,1fr) 112px;
+  gap:8px;
   align-items:end
 }
-.laptop-arrows{align-self:end;padding-bottom:2px}
-.keyboard-laptop .arrow-grid{margin-inline:0;gap:4px}
-.keyboard-laptop .arrow-grid .arrow-key{height:var(--key-size);min-height:var(--key-size)}
-.keyboard-laptop .key-row{gap:4px;margin-bottom:4px}
-.keyboard-laptop .key{border-radius:6px;padding:5px 4px}
+.keyboard-laptop .laptop-bottom-line .key-row{margin-bottom:0}
+.keyboard-laptop .laptop-arrow-wrap{min-width:0}
+.keyboard-laptop .laptop-arrow-wrap .arrow-grid{gap:4px;margin:0}
+.keyboard-laptop .arrow-key{height:var(--key-size);min-height:var(--key-size)}
+
+
 .keyboard-note{display:flex;align-items:center;gap:6px;margin-top:10px;color:#8c8f95;font-size:11px}
 
 
@@ -502,7 +503,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .games-grid{grid-template-columns:1fr}
 @media(max-width:800px){
   .keyboard{min-width:820px}
-  .keyboard-laptop{min-width:720px}
+  .keyboard-laptop{min-width:760px}
   .keyboard-body-grid{grid-template-columns:15.5fr 4fr 4fr}
   .function-clusters{gap:8px}
   .games-overlay{padding:10px}
@@ -517,6 +518,13 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
   .milestone-toast{top:68px;right:10px}
 }
 @media(max-width:650px){
+  .keyboard-laptop{min-width:760px;padding:9px;border-radius:14px}
+  .keyboard-laptop .function-clusters{gap:5px}
+  .keyboard-laptop .function-cluster{gap:3px}
+  .keyboard-laptop .function-key{height:24px;min-height:24px;font-size:6.5px}
+  .keyboard-laptop .key-row{gap:3px;margin-bottom:3px}
+  .keyboard-laptop .laptop-bottom-line{grid-template-columns:minmax(0,1fr) 108px;gap:4px}
+  .keyboard-laptop .laptop-bottom-line .arrow-grid{gap:3px}
   .topbar{height:56px;padding:0 10px;grid-template-columns:auto 1fr auto}.wordmark{justify-content:center;font-size:13px}.left-controls .quiet-action{display:none}.right-controls{gap:4px}
   .outline-action{height:34px;padding:0 10px;font-size:11px}.icon-action{width:34px;height:34px}
   .workspace{width:calc(100% - 12px);padding:18px 0}
