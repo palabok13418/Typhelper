@@ -6,6 +6,8 @@ export type KeyDef={
   kind?:"key"|"modifier"|"action";
   colSpan?:number;
   rowSpan?:number;
+  gridColumn?:number;
+  gridRow?:number;
 };
 
 export const FUNCTION_CLUSTERS:KeyDef[][]=[
@@ -17,24 +19,30 @@ export const FUNCTION_CLUSTERS:KeyDef[][]=[
 
 export const WINDOWS_NUMBER_ROW:KeyDef[]=[
   {k:"backquote",label:"`",glyph:"~"},
-  {k:"1"},{k:"2"},{k:"3"},{k:"4"},{k:"5"},{k:"6"},{k:"7"},{k:"8"},{k:"9"},{k:"0"},{k:"-",glyph:"_"},
-  {k:"=",glyph:"+"},{k:"backspace",label:"Backspace",glyph:"⌫",w:2,kind:"action"}
+  {k:"1",label:"1",glyph:"!"},{k:"2",label:"2",glyph:"@"},{k:"3",label:"3",glyph:"#"},
+  {k:"4",label:"4",glyph:"$"},{k:"5",label:"5",glyph:"%"},{k:"6",label:"6",glyph:"^"},
+  {k:"7",label:"7",glyph:"&"},{k:"8",label:"8",glyph:"*"},{k:"9",label:"9",glyph:"("},
+  {k:"0",label:"0",glyph:")"},{k:"-",label:"-",glyph:"_"},{k:"=",label:"=",glyph:"+"},
+  {k:"backspace",label:"Backspace",glyph:"⌫",w:2,kind:"action"}
 ];
 
 export const WINDOWS_ROWS:KeyDef[][]=[
   [
     {k:"tab",label:"Tab",glyph:"⇥",w:1.5,kind:"modifier"},
-    {k:"q"},{k:"w"},{k:"e"},{k:"r"},{k:"t"},{k:"y"},{k:"u"},{k:"i"},{k:"o"},{k:"p"},{k:"[",glyph:"["},{k:"]",glyph:"]"},
-    {k:"\\",glyph:"\\",w:1.5}
+    {k:"q",label:"Q"},{k:"w",label:"W"},{k:"e",label:"E"},{k:"r",label:"R"},{k:"t",label:"T"},{k:"y",label:"Y"},{k:"u",label:"U"},{k:"i",label:"I"},{k:"o",label:"O"},{k:"p",label:"P"},
+    {k:"[",label:"[",glyph:"{"},{k:"]",label:"]",glyph:"}"},
+    {k:"\\",label:"\\",glyph:"|",w:1.5}
   ],
   [
     {k:"caps",label:"Caps Lock",glyph:"⇪",w:1.75,kind:"modifier"},
-    {k:"a"},{k:"s"},{k:"d"},{k:"f"},{k:"g"},{k:"h"},{k:"j"},{k:"k"},{k:"l"},{k:";",glyph:":"},{k:"'",glyph:'"'},
+    {k:"a",label:"A"},{k:"s",label:"S"},{k:"d",label:"D"},{k:"f",label:"F"},{k:"g",label:"G"},{k:"h",label:"H"},{k:"j",label:"J"},{k:"k",label:"K"},{k:"l",label:"L"},
+    {k:";",label:";",glyph:":"},{k:"'",label:"'",glyph:'"'},
     {k:"enter",label:"Enter",glyph:"↵",w:2.25,kind:"action"}
   ],
   [
     {k:"left-shift",label:"Shift",glyph:"⇧",w:2.25,kind:"modifier"},
-    {k:"z"},{k:"x"},{k:"c"},{k:"v"},{k:"b"},{k:"n"},{k:"m"},{k:",",glyph:","},{k:".",glyph:"."},{k:"/",glyph:"?"},
+    {k:"z",label:"Z"},{k:"x",label:"X"},{k:"c",label:"C"},{k:"v",label:"V"},{k:"b",label:"B"},{k:"n",label:"N"},{k:"m",label:"M"},
+    {k:",",label:",",glyph:"<"},{k:".",label:".",glyph:">"},{k:"/",label:"/",glyph:"?"},
     {k:"right-shift",label:"Shift",glyph:"⇧",w:2.75,kind:"modifier"}
   ]
 ];
@@ -62,17 +70,20 @@ export const WINDOWS_COPILOT_BOTTOM_ROW:KeyDef[]=[
 export const MAC_ROWS:KeyDef[][]=[
   [
     {k:"tab",label:"Tab",glyph:"⇥",w:1.5,kind:"modifier"},
-    {k:"q"},{k:"w"},{k:"e"},{k:"r"},{k:"t"},{k:"y"},{k:"u"},{k:"i"},{k:"o"},{k:"p"},{k:"[",glyph:"["},{k:"]",glyph:"]"},
-    {k:"\\",glyph:"\\",w:1.5}
+    {k:"q",label:"Q"},{k:"w",label:"W"},{k:"e",label:"E"},{k:"r",label:"R"},{k:"t",label:"T"},{k:"y",label:"Y"},{k:"u",label:"U"},{k:"i",label:"I"},{k:"o",label:"O"},{k:"p",label:"P"},
+    {k:"[",label:"[",glyph:"{"},{k:"]",label:"]",glyph:"}"},
+    {k:"\\",label:"\\",glyph:"|",w:1.5}
   ],
   [
     {k:"caps",label:"Caps Lock",glyph:"⇪",w:1.75,kind:"modifier"},
-    {k:"a"},{k:"s"},{k:"d"},{k:"f"},{k:"g"},{k:"h"},{k:"j"},{k:"k"},{k:"l"},{k:";",glyph:":"},{k:"'",glyph:'"'},
+    {k:"a",label:"A"},{k:"s",label:"S"},{k:"d",label:"D"},{k:"f",label:"F"},{k:"g",label:"G"},{k:"h",label:"H"},{k:"j",label:"J"},{k:"k",label:"K"},{k:"l",label:"L"},
+    {k:";",label:";",glyph:":"},{k:"'",label:"'",glyph:'"'},
     {k:"return",label:"Return",glyph:"↵",w:2.25,kind:"action"}
   ],
   [
     {k:"left-shift",label:"Shift",glyph:"⇧",w:2.25,kind:"modifier"},
-    {k:"z"},{k:"x"},{k:"c"},{k:"v"},{k:"b"},{k:"n"},{k:"m"},{k:",",glyph:","},{k:".",glyph:"."},{k:"/",glyph:"?"},
+    {k:"z",label:"Z"},{k:"x",label:"X"},{k:"c",label:"C"},{k:"v",label:"V"},{k:"b",label:"B"},{k:"n",label:"N"},{k:"m",label:"M"},
+    {k:",",label:",",glyph:"<"},{k:".",label:".",glyph:">"},{k:"/",label:"/",glyph:"?"},
     {k:"right-shift",label:"Shift",glyph:"⇧",w:2.75,kind:"modifier"}
   ]
 ];
@@ -90,15 +101,15 @@ export const MAC_BOTTOM_ROW:KeyDef[]=[
 ];
 
 export const NAVIGATION_GRID:KeyDef[]=[
-  {k:"printscreen",label:"PrtSc",glyph:"⎙"},
-  {k:"scrolllock",label:"Scroll",glyph:"⇳"},
-  {k:"pause",label:"Pause",glyph:"⏸"},
-  {k:"insert",label:"Insert",glyph:"Ins"},
-  {k:"home",label:"Home",glyph:"↖"},
-  {k:"pageup",label:"Page Up",glyph:"⇞"},
-  {k:"delete",label:"Delete",glyph:"⌫"},
-  {k:"end",label:"End",glyph:"↘"},
-  {k:"pagedown",label:"Page Down",glyph:"⇟"}
+  {k:"printscreen",label:"PrtSc",glyph:"⎙",gridColumn:1,gridRow:1},
+  {k:"scrolllock",label:"Scroll",glyph:"⇳",gridColumn:2,gridRow:1},
+  {k:"pause",label:"Pause",glyph:"⏸",gridColumn:3,gridRow:1},
+  {k:"insert",label:"Insert",glyph:"Ins",gridColumn:1,gridRow:2},
+  {k:"home",label:"Home",glyph:"↖",gridColumn:2,gridRow:2},
+  {k:"pageup",label:"Page Up",glyph:"⇞",gridColumn:3,gridRow:2},
+  {k:"delete",label:"Delete",glyph:"⌫",gridColumn:1,gridRow:3},
+  {k:"end",label:"End",glyph:"↘",gridColumn:2,gridRow:3},
+  {k:"pagedown",label:"Page Down",glyph:"⇟",gridColumn:3,gridRow:3}
 ];
 
 export const ARROW_GRID:KeyDef[]=[
@@ -109,16 +120,23 @@ export const ARROW_GRID:KeyDef[]=[
 ];
 
 export const NUMPAD_GRID:KeyDef[]=[
-  {k:"numlock",label:"Num",glyph:"⇧"},
-  {k:"numpad-divide",label:"/",glyph:"÷"},
-  {k:"numpad-multiply",label:"*",glyph:"×"},
-  {k:"numpad-subtract",label:"-",glyph:"−"},
-  {k:"numpad-7",label:"7"},{k:"numpad-8",label:"8"},{k:"numpad-9",label:"9"},
-  {k:"numpad-add",label:"+",glyph:"+",rowSpan:2,kind:"action"},
-  {k:"numpad-4",label:"4"},{k:"numpad-5",label:"5"},{k:"numpad-6",label:"6"},
-  {k:"numpad-1",label:"1"},{k:"numpad-2",label:"2"},{k:"numpad-3",label:"3"},
-  {k:"numpad-enter",label:"Enter",glyph:"↵",rowSpan:2,kind:"action"},
-  {k:"numpad-0",label:"0",w:2},{k:"numpad-decimal",label:".",glyph:"·"}
+  {k:"numlock",label:"Num Lock",glyph:"Num",gridColumn:1,gridRow:1},
+  {k:"numpad-divide",label:"/",glyph:"÷",gridColumn:2,gridRow:1},
+  {k:"numpad-multiply",label:"*",glyph:"×",gridColumn:3,gridRow:1},
+  {k:"numpad-subtract",label:"-",glyph:"−",gridColumn:4,gridRow:1},
+  {k:"numpad-7",label:"7",gridColumn:1,gridRow:2},
+  {k:"numpad-8",label:"8",gridColumn:2,gridRow:2},
+  {k:"numpad-9",label:"9",gridColumn:3,gridRow:2},
+  {k:"numpad-add",label:"+",glyph:"+",gridColumn:4,gridRow:2,rowSpan:2,kind:"action"},
+  {k:"numpad-4",label:"4",gridColumn:1,gridRow:3},
+  {k:"numpad-5",label:"5",gridColumn:2,gridRow:3},
+  {k:"numpad-6",label:"6",gridColumn:3,gridRow:3},
+  {k:"numpad-1",label:"1",gridColumn:1,gridRow:4},
+  {k:"numpad-2",label:"2",gridColumn:2,gridRow:4},
+  {k:"numpad-3",label:"3",gridColumn:3,gridRow:4},
+  {k:"numpad-enter",label:"Enter",glyph:"↵",gridColumn:4,gridRow:4,rowSpan:2,kind:"action"},
+  {k:"numpad-0",label:"0",gridColumn:1,gridRow:5,w:2},
+  {k:"numpad-decimal",label:".",glyph:"·",gridColumn:3,gridRow:5}
 ];
 
 export const macMediaLabels=[
