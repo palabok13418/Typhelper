@@ -495,7 +495,7 @@ function Duelity({accountUsername,onExit}:{accountUsername:string|null;onExit:()
     if(!joinCode.trim()){setStatus("Enter a room code.");return}
     if(usingGuest&&!ensureGuestName()){setStatus("Choose a guest username with 2–20 letters, numbers, spaces, dots, dashes, or underscores.");return}
     const code=joinCode.trim().toUpperCase();cleanup();roleRef.current="guest";setRoomCode(code);setScreen("joining");setStatus("Connecting to room…");
-    const peer=new Peer(undefined,peerOptions());
+    const peer=new Peer(peerOptions());
     peerRef.current=peer;
     peer.on("open",()=>{const connection=peer.connect(PEER_PREFIX+code.toLowerCase(),{reliable:true,serialization:"json"});setupConnection(connection,"guest",code)});
     peer.on("error",error=>setStatus(error.message));
