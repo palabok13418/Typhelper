@@ -377,7 +377,9 @@ export default function App({clerk=false}:{clerk?:boolean}){
   function renderKeys(row:KeyDef[],rowName:string){
     return <div className="key-row" key={rowName}>{row.map(key=>{
       const finger=fingerColors?fingerClass(key.k):"";
-      return <div key={key.k} data-key={key.k} className={"key "+(key.kind==="modifier"?"modifier-key ":"")+finger+(key.k===target?" target":"")} style={{flex:key.w??1}}>{key.label??key.k.toUpperCase()}</div>
+      return <div key={key.k} data-key={key.k} className={"key "+(key.kind==="modifier"?"modifier-key ":"")+finger+(key.k===target?" target":"")} style={{flex:key.w??1,gridColumn:key.gridColumn,gridRow:key.gridRow}}>
+        <span className="key-glyph">{key.glyph??""}</span><span className="key-label">{key.label??key.k.toUpperCase()}</span>
+      </div>
     })}</div>
   }
 
@@ -427,7 +429,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
                 <div className="arrow-grid">{ARROW_GRID.map(key=><div key={key.k} data-key={key.k} className="key arrow-key"><span className="key-glyph">{key.glyph}</span></div>)}</div>
               </div>
               <div className="numpad-keyboard">
-                {NUMPAD_GRID.map(key=><div key={key.k} data-key={key.k} className={"key num-key "+(key.rowSpan?"row-span":"")} style={{gridColumn:key.k==="numpad-0"?"span 2":undefined,gridRow:key.rowSpan?"span "+key.rowSpan:undefined}}>
+                {NUMPAD_GRID.map(key=><div key={key.k} data-key={key.k} className={"key num-key "+(key.rowSpan?"row-span":"")} style={{gridColumn:key.k==="numpad-0"?"span 2":key.gridColumn,gridRow:key.rowSpan?"span "+key.rowSpan:key.gridRow}}>
                   <span className="key-glyph">{key.glyph??""}</span><span className="key-label">{key.label}</span>
                 </div>)}
               </div>
