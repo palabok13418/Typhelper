@@ -361,7 +361,7 @@ function GameLaunch({title,description,button,onStart,children}:{title:string;de
   return <div className="game-launch"><div className="game-launch-copy"><div className="game-launch-orb"><Play size={19}/></div><div><div className="modal-step">Ready</div><h3>{title}</h3><p>{description}</p></div></div><div className="game-launch-preview">{children}</div><button className="solid-action game-start" onClick={onStart}>{button}<ChevronRight size={16}/></button></div>
 }
 
-function GameResult({icon,title,score,stats,onRetry,onExit}:{icon:React.ReactNode;title:string;score:number;stats:{label:string;value:string}[];onRetry:()=>void;onExit:()=>void}){
+function GameResult({icon,title,score,stats,onRetry,onExit}:{icon:ReactNode;title:string;score:number;stats:{label:string;value:string}[];onRetry:()=>void;onExit:()=>void}){
   return <div className="game-result"><div className="game-result-icon">{icon}</div><div className="modal-step">Run complete</div><h3>{title}</h3><div className="game-score">{score}<span>/100</span></div><div className="game-result-stats">{stats.map(stat=><div key={stat.label}><span>{stat.label}</span><strong>{stat.value}</strong></div>)}</div><div className="game-result-actions"><button className="outline-action" onClick={onExit}>Games</button><button className="solid-action" onClick={onRetry}><RotateCcw size={15}/>Play again</button></div></div>
 }
 
@@ -428,7 +428,6 @@ function Duelity({accountUsername,onExit}:{accountUsername:string|null;onExit:()
       setPeerReady(true);
       setStatus("Connected. Waiting for both players.");
       connection.send({type:"hello",name:identity,role,code} satisfies DuelMessage);
-      if(role==="guest")connection.send({type:"hello",name:identity,role,code} satisfies DuelMessage);
     });
     connection.on("data",(raw)=>{
       const message=raw as DuelMessage;
