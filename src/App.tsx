@@ -8,7 +8,7 @@ import{scoreWebNN}from"./lib/webnn";
 import{createQuiz,nextChallengeWord,scoreQuiz,scoreSentenceChallenge,type ChallengeWord,type QuizScore,type SentenceChallengeScore}from"./lib/quiz";
 import{PersonalModel}from"./lib/personal-model";
 import{VisionBridge}from"./lib/vision-bridge";
-import{ARROW_GRID,FUNCTION_CLUSTERS,MAC_BOTTOM_ROW,MAC_FUNCTION_CLUSTERS,MAC_LAPTOP_BOTTOM_ROW,MAC_ROWS,NAVIGATION_GRID,NUMPAD_GRID,WINDOWS_BOTTOM_ROW,WINDOWS_COPILOT_BOTTOM_ROW,WINDOWS_LAPTOP_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
+import{ARROW_GRID,FUNCTION_CLUSTERS,MAC_BOTTOM_ROW,MAC_FUNCTION_CLUSTERS,MAC_LAPTOP_BOTTOM_ROW,MAC_ROWS,NAVIGATION_GRID,NUMPAD_GRID,WINDOWS_BOTTOM_ROW,WINDOWS_COPILOT_BOTTOM_ROW,WINDOWS_LAPTOP_BOTTOM_ROW,WINDOWS_LAPTOP_COPILOT_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
 import{fingerClass}from"./lib/finger-map";
 import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateSession,animateWord,animateWordExit}from"./lib/animations";
 import{analyzePractice,analyzeQuiz}from"./lib/ai-coach";
@@ -341,8 +341,12 @@ export default function App({clerk=false}:{clerk?:boolean}){
   const percent=word ? Math.min(100,Math.round((index/word.length)*100)) : 0;
   const rows=keyboardStyle==="windows"?WINDOWS_ROWS:MAC_ROWS;
   const bottom=keyboardSize==="laptop"
-    ?(keyboardStyle==="windows"?WINDOWS_LAPTOP_BOTTOM_ROW:MAC_LAPTOP_BOTTOM_ROW)
-    :(keyboardStyle==="windows"?(windowsLayout==="copilot"?WINDOWS_COPILOT_BOTTOM_ROW:WINDOWS_BOTTOM_ROW):MAC_BOTTOM_ROW);
+    ?(keyboardStyle==="windows"
+      ?(windowsLayout==="copilot"?WINDOWS_LAPTOP_COPILOT_BOTTOM_ROW:WINDOWS_LAPTOP_BOTTOM_ROW)
+      :MAC_LAPTOP_BOTTOM_ROW)
+    :(keyboardStyle==="windows"
+      ?(windowsLayout==="copilot"?WINDOWS_COPILOT_BOTTOM_ROW:WINDOWS_BOTTOM_ROW)
+      :MAC_BOTTOM_ROW);
 
   function openWordDetails(){
     detailsRequest.current?.abort();
@@ -433,14 +437,14 @@ export default function App({clerk=false}:{clerk?:boolean}){
               )}</div>)}
             </div>
             {keyboardSize==="laptop"
-              ?<div className="laptop-body-grid">
-                  <div className="main-keyboard">
-                    {renderKeys(WINDOWS_NUMBER_ROW,"number-row")}
-                    {rows.map((row,i)=>renderKeys(row,"main-row-"+i))}
+              ?<div className="laptop-main">
+                  {renderKeys(WINDOWS_NUMBER_ROW,"number-row")}
+                  {rows.map((row,i)=>renderKeys(row,"main-row-"+i))}
+                  <div className="laptop-bottom-line">
                     {renderKeys(bottom,"bottom-row")}
-                  </div>
-                  <div className="laptop-arrows">
-                    <div className="arrow-grid">{ARROW_GRID.map(key=><div key={key.k} data-key={key.k} className="key arrow-key"><span className="key-glyph">{key.glyph}</span></div>)}</div>
+                    <div className="laptop-arrow-wrap">
+                      <div className="arrow-grid">{ARROW_GRID.map(key=><div key={key.k} data-key={key.k} className="key arrow-key"><span className="key-glyph">{key.glyph}</span></div>)}</div>
+                    </div>
                   </div>
                 </div>
               :<div className="keyboard-body-grid">
@@ -460,8 +464,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
                   </div>
                 </div>}
           </div>
-          <div className="keyboard-note"><Activity size={13}/><span>{physicalKeyboard?.exactDevice?physicalKeyboard.name:((keyboardSize==="laptop"?"Laptop ":"")+(keyboardStyle==="windows"?"Windows keyboard":"Mac keyboard"))} · the trainer learns from every correct and incorrect press</span></div>
-        </div>
+          <div className="keyboard-note"><Activity size={13}/><span>{physicalKeyboard?.exactDevice?physicalKeyboard.name:((keyboardSize==="laptop"?"Laptop ":"")+(keyboardStyle==="windows"?"Windows keyboard":"Mac keyboard"))} · the trainer learns from every correct and incorrect press</span></div>        </div>
       </section>
 
       <aside className="practice-side">
