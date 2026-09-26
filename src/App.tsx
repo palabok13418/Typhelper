@@ -8,7 +8,7 @@ import{scoreWebNN}from"./lib/webnn";
 import{createQuiz,nextChallengeWord,scoreQuiz,scoreSentenceChallenge,type ChallengeWord,type QuizScore,type SentenceChallengeScore}from"./lib/quiz";
 import{PersonalModel}from"./lib/personal-model";
 import{VisionBridge}from"./lib/vision-bridge";
-import{ARROW_GRID,FUNCTION_CLUSTERS,MAC_BOTTOM_ROW,MAC_FUNCTION_CLUSTERS,MAC_LAPTOP_BOTTOM_ROW,MAC_ROWS,NAVIGATION_GRID,NUMPAD_GRID,WINDOWS_BOTTOM_ROW,WINDOWS_COPILOT_BOTTOM_ROW,WINDOWS_LAPTOP_BOTTOM_ROW,WINDOWS_LAPTOP_COPILOT_BOTTOM_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
+import{ARROW_GRID,FUNCTION_CLUSTERS,MAC_BOTTOM_ROW,MAC_FUNCTION_CLUSTERS,MAC_LAPTOP_BOTTOM_ROW,MAC_LAPTOP_FUNCTION_ROW,MAC_ROWS,NAVIGATION_GRID,NUMPAD_GRID,WINDOWS_BOTTOM_ROW,WINDOWS_COPILOT_BOTTOM_ROW,WINDOWS_LAPTOP_BOTTOM_ROW,WINDOWS_LAPTOP_COPILOT_BOTTOM_ROW,WINDOWS_LAPTOP_FUNCTION_ROW,WINDOWS_NUMBER_ROW,WINDOWS_ROWS,nextKey,normalizeKey,type KeyDef}from"./lib/keyboard";
 import{fingerClass}from"./lib/finger-map";
 import{animateDefinition,animateKeyGuide,animateKeyPress,animateModal,animatePanel,animateSession,animateWord,animateWordExit}from"./lib/animations";
 import{analyzePractice,analyzeQuiz}from"./lib/ai-coach";
@@ -429,19 +429,28 @@ export default function App({clerk=false}:{clerk?:boolean}){
 
         <div className="keyboard-stage">
           <div className={"keyboard keyboard-"+keyboardStyle+" keyboard-"+keyboardSize} ref={keyboardRef} aria-label={(keyboardSize==="laptop"?"Laptop ":"Full-size ")+(keyboardStyle==="windows"?"Windows":"Mac")+" keyboard visualization"}>
-            <div className="function-clusters">
+            {keyboardSize==="full"&&<div className="function-clusters">
               {(keyboardStyle==="mac"?MAC_FUNCTION_CLUSTERS:FUNCTION_CLUSTERS).map((cluster,index)=><div className={"function-cluster function-cluster-"+index} key={"cluster-"+index}>{cluster.map(key=>
                 <div key={key.k} data-key={key.k} className="key function-key" style={{flex:key.w??1}}>
                   <span className="key-glyph">{key.glyph??""}</span><span className="key-label">{key.label}</span>
                 </div>
               )}</div>)}
-            </div>
+            </div>}
             {keyboardSize==="laptop"
               ?<div className="laptop-main">
-                  {renderKeys(WINDOWS_NUMBER_ROW,"number-row")}
-                  {rows.map((row,i)=>renderKeys(row,"main-row-"+i))}
+                  <div className="laptop-function-row">
+                    {(keyboardStyle==="windows"?WINDOWS_LAPTOP_FUNCTION_ROW:MAC_LAPTOP_FUNCTION_ROW).map(key=>
+                      <div key={key.k} data-key={key.k} className="key function-key laptop-function-key" style={{flex:key.w??1}}>
+                        <span className="key-glyph">{key.glyph??""}</span><span className="key-label">{key.label}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="laptop-alpha-block">
+                    {renderKeys(WINDOWS_NUMBER_ROW,"number-row")}
+                    {rows.map((row,i)=>renderKeys(row,"main-row-"+i))}
+                  </div>
                   <div className="laptop-bottom-line">
-                    {renderKeys(bottom,"bottom-row")}
+                    <div className="laptop-modifier-row">{renderKeys(bottom,"bottom-row")}</div>
                     <div className="laptop-arrow-wrap">
                       <div className="arrow-grid">{ARROW_GRID.map(key=><div key={key.k} data-key={key.k} className="key arrow-key"><span className="key-glyph">{key.glyph}</span></div>)}</div>
                     </div>
