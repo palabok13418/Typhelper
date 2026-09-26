@@ -309,7 +309,7 @@ export default function App({clerk=false}:{clerk?:boolean}){
         const duration=now-wordStarted.current;
         learner.current?.record({kind:"word",word,correct,duration});
         recentPractice.current=[...recentPractice.current,{word,correct,duration}].slice(-30);
-        const wordMinutes=Math.max(.4,duration/60000);
+        const wordMinutes=Math.max(.4/60,duration/60000);
         const wordWpm=Math.round(Math.min(240,(word.length/5)/wordMinutes));
         const nextTotal=progressRef.current.totalPracticeWords+1;
         setP(current=>({...current,totalPracticeWords:current.totalPracticeWords+1,bestWpm:Math.max(current.bestWpm,wordWpm)}));
@@ -644,6 +644,14 @@ function AccountCloudSync({progress,onHydrate,onCountChange,onIdentityChange}:{p
         &&JSON.stringify(a.skillMap)===JSON.stringify(b.skillMap)
         &&JSON.stringify(a.history)===JSON.stringify(b.history);
     };
+    const compactForClerk=(value:Progress):Progress=>{
+      const skillMap=Object.fromEntries(
+        Object.entries(value.skillMap)
+          .sort(([,a],[,b])=>b.attempts-a.attempts||b.lastSeen-a.lastSeen)
+          .slice(0,24)
+      );
+      return{...value,skillMap,history:value.history.slice(0,3)};
+    };
 
     const sync=async()=>{
       if(cancelled||running.current)return;
@@ -657,7 +665,8 @@ function AccountCloudSync({progress,onHydrate,onCountChange,onIdentityChange}:{p
 
         const remoteWords=typhelper&&typeof typhelper==="object"?readWords((typhelper as Record<string,unknown>).generatedWords):[];
         const localWords=loadGeneratedWords();
-        const mergedWords=[...new Set([...remoteWords,...localWords])].slice(-1000);
+        const mergedLocalWords=[...new Set([...localWords,...remoteWords])].slice(-2000);
+        const cloudWords=mergedLocalWords.slice(-200);
 
         const remoteGames=typhelper&&typeof typhelper==="object"?readGameStats((typhelper as Record<string,unknown>).gameStats):{};
         const localGames=loadGameStats();
@@ -669,16 +678,16 @@ function AccountCloudSync({progress,onHydrate,onCountChange,onIdentityChange}:{p
         }
 
         if(!sameProgress(base,mergedProgress))onHydrate(mergedProgress);
-        const localWordsKey=JSON.stringify(localWords);
-        if(localWordsKey!==JSON.stringify(mergedWords))saveGeneratedWords(mergedWords);
-        onCountChange(mergedWords.length);
+        if(JSON.stringify(localWords)!==JSON.stringify(mergedLocalWords))saveGeneratedWords(mergedLocalWords);
+        onCountChange(mergedLocalWords.length);
         onIdentityChange(user.username||user.firstName||user.fullName||null);
+        const compacted=compactForClerk(mergedProgress);
         await user.updateMetadata({
           unsafeMetadata:{
             typhelper:{
-              schemaVersion:3,
-              progress:{...mergedProgress,activeSeconds:base.activeSeconds,history:mergedProgress.history.slice(0,30)},
-              generatedWords:mergedWords,
+              schemaVersion:4,
+              progress:{...compacted,activeSeconds:base.activeSeconds},
+              generatedWords:cloudWords,
               gameStats:mergedGames
             }
           }
@@ -699,13 +708,17 @@ function AccountCloudSync({progress,onHydrate,onCountChange,onIdentityChange}:{p
         void sync();
       },delay);
     };
+    const flush=()=>{
+      if(timer.current!==null){window.clearTimeout(timer.current);timer.current=null}
+      void sync();
+    };
 
     void sync().finally(()=>{
       if(cancelled)return;
       window.addEventListener("typhelper-progress-changed",schedule);
       window.addEventListener("typhelper-generated-word",schedule);
       window.addEventListener("typhelper-game-stats-changed",schedule);
-      window.addEventListener("pagehide",schedule);
+      window.addEventListener("pagehide",flush);
     });
 
     return()=>{
@@ -713,7 +726,7 @@ function AccountCloudSync({progress,onHydrate,onCountChange,onIdentityChange}:{p
       window.removeEventListener("typhelper-progress-changed",schedule);
       window.removeEventListener("typhelper-generated-word",schedule);
       window.removeEventListener("typhelper-game-stats-changed",schedule);
-      window.removeEventListener("pagehide",schedule);
+      window.removeEventListener("pagehide",flush);
       if(timer.current!==null)window.clearTimeout(timer.current);
     };
   },[isLoaded,isSignedIn,user]);
