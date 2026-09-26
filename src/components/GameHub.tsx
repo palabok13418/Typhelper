@@ -1,7 +1,7 @@
 import{Peer}from"peerjs";
 import type{DataConnection}from"peerjs";
 import{ArrowLeft,ChevronRight,Gamepad2,Hash,Play,RotateCcw,Share2,Swords,Trophy,Users,X,Zap}from"lucide-react";
-import{useEffect,useMemo,useRef,useState}from"react";
+import{useEffect,useMemo,useRef,useState,type ReactNode}from"react";
 import{CASCADE_KEYS,PRECISION_WORDS,SPRINT_PASSAGES,cascadeScore,chooseItem,duelPassageForCode,loadGameStats,precisionScore,saveGameResult,sprintScore}from"../lib/games";
 import{isValidUsername,loadGuestUsername,sanitizeUsername,saveGuestUsername}from"../lib/social";
 
@@ -357,7 +357,7 @@ function PrecisionRun({onExit}:{onExit:()=>void}){
   </div>
 }
 
-function GameLaunch({title,description,button,onStart,children}:{title:string;description:string;button:string;onStart:()=>void;children:React.ReactNode}){
+function GameLaunch({title,description,button,onStart,children}:{title:string;description:string;button:string;onStart:()=>void;children:ReactNode}){
   return <div className="game-launch"><div className="game-launch-copy"><div className="game-launch-orb"><Play size={19}/></div><div><div className="modal-step">Ready</div><h3>{title}</h3><p>{description}</p></div></div><div className="game-launch-preview">{children}</div><button className="solid-action game-start" onClick={onStart}>{button}<ChevronRight size={16}/></button></div>
 }
 
@@ -546,6 +546,8 @@ function DuelRace({target,startsAt,localName,opponentName,opponentProgress,sendP
   const[inputErrors,setInputErrors]=useState(0);
   const inputRef=useRef<HTMLTextAreaElement>(null);
   const resultSent=useRef(false);
+  const resultHandler=useRef(onResult);
+  useEffect(()=>{resultHandler.current=onResult},[onResult]);
 
   useEffect(()=>{inputRef.current?.focus()},[]);
   useEffect(()=>{
@@ -565,7 +567,7 @@ function DuelRace({target,startsAt,localName,opponentName,opponentProgress,sendP
     if(finished)return;
     if(elapsed>=DUEL_LIMIT_MS){
       setFinished(true);
-      if(!resultSent.current){resultSent.current=true;onResult({name:localName,wpm,accuracy,elapsedMs:DUEL_LIMIT_MS,completed:false})}
+      if(!resultSent.current){resultSent.current=true;resultHandler.current({name:localName,wpm,accuracy,elapsedMs:DUEL_LIMIT_MS,completed:false})}
     }
   },[elapsed,finished,localName,wpm,accuracy,onResult]);
 
@@ -585,7 +587,7 @@ function DuelRace({target,startsAt,localName,opponentName,opponentProgress,sendP
       if(event.key!==target[prev.length])setInputErrors(value=>value+1);
       if(next.length===target.length&&!resultSent.current){
         resultSent.current=true;setFinished(true);
-        onResult({name:localName,wpm:nextWpm,accuracy:nextAccuracy,elapsedMs:Math.max(1,Date.now()-startsAt),completed:true});
+        resultHandler.current({name:localName,wpm:nextWpm,accuracy:nextAccuracy,elapsedMs:Math.max(1,Date.now()-startsAt),completed:true});
       }
       return next;
     });
