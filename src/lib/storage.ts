@@ -118,7 +118,7 @@ export function mergeProgress(local:Progress,remote:Progress):Progress{
 
   return{
     version:2,
-    activeSeconds:Math.max(0,Math.max(local.activeSeconds,remote.activeSeconds)),
+    activeSeconds:Math.max(0,Math.min(1800,local.activeSeconds)),
     totalPracticeWords:Math.max(local.totalPracticeWords,remote.totalPracticeWords),
     bestWpm:Math.max(local.bestWpm,remote.bestWpm),
     bestScore:Math.max(local.bestScore,remote.bestScore),
