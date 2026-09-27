@@ -579,3 +579,134 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .check-row strong{font:700 14px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#202124}
 .challenge-prompt-row strong{font-variant-numeric:tabular-nums}
 .sentence-challenge textarea{min-height:260px;line-height:1.7}
+
+
+/* ── Keyboard layout rebuild ────────────────────────────────────────
+   One deterministic geometry system for:
+   Windows / Windows Copilot / Mac
+   Full-size / laptop
+   Navigation cluster / arrow cluster / numpad
+   ──────────────────────────────────────────────────────────────── */
+.keyboard-stage{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  overflow-x:auto;
+  overflow-y:hidden;
+  align-items:flex-start;
+  padding:14px 0 12px;
+  scroll-snap-type:x proximity;
+}
+.keyboard{
+  --key-size:clamp(36px,3.15vw,50px);
+  --key-gap:6px;
+  --board-pad:14px;
+  flex:0 0 auto;
+  width:max(860px,100%);
+  min-width:860px;
+  padding:var(--board-pad);
+  gap:12px;
+  border:1px solid #cfd2cd;
+  border-radius:20px;
+  background:
+    linear-gradient(180deg,#eef0ed 0%,#e5e7e4 100%);
+  box-shadow:0 20px 56px rgba(30,33,37,.12),inset 0 1px 0 rgba(255,255,255,.8);
+}
+.function-clusters{
+  grid-template-columns:72px repeat(3,minmax(0,1fr));
+  gap:14px;
+  padding:0;
+}
+.function-cluster{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:6px;
+}
+.function-cluster-0{grid-template-columns:1fr}
+.key-row{
+  gap:var(--key-gap);
+  margin-bottom:var(--key-gap);
+}
+.key{
+  height:var(--key-size);
+  min-height:var(--key-size);
+  min-width:0;
+  padding:5px 4px;
+  border:1px solid #c7cbc6;
+  border-bottom-color:#b3b7b2;
+  border-radius:8px;
+  background:linear-gradient(180deg,#fbfcfa 0%,#e9ebe8 100%);
+  box-shadow:0 2px 0 rgba(0,0,0,.055),inset 0 1px 0 rgba(255,255,255,.9);
+  color:#4d5258;
+  font-size:clamp(8px,.72vw,11px);
+  overflow:hidden;
+}
+.key:hover{background:linear-gradient(180deg,#fff 0%,#eef0ed 100%);border-color:#b8bcb7}
+.key.target{
+  background:linear-gradient(180deg,#eef4ff 0%,#dce8fb 100%);
+  border-color:#7ea4e6;
+  box-shadow:0 0 0 2px rgba(47,100,206,.14),0 3px 0 rgba(47,100,206,.08);
+}
+.key-glyph{min-height:11px}
+.key-label{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.function-key{height:30px;min-height:30px;border-radius:7px;font-size:clamp(7px,.56vw,9px)}
+.keyboard-body-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 154px 190px;
+  gap:10px;
+  align-items:start;
+}
+.main-keyboard,.navigation-keyboard,.numpad-keyboard{min-width:0}
+.navigation-keyboard{gap:10px}
+.nav-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-rows:repeat(3,var(--key-size));
+  gap:var(--key-gap);
+}
+.arrow-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-rows:repeat(2,var(--key-size));
+  gap:var(--key-gap);
+  margin:0;
+}
+.numpad-keyboard{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-template-rows:repeat(5,var(--key-size));
+  gap:var(--key-gap);
+}
+.numpad-keyboard .key[style*="span 2"]{height:auto;min-height:calc(var(--key-size)*2 + var(--key-gap))}
+.keyboard-laptop{
+  width:max(760px,100%);
+  min-width:760px;
+  --key-size:clamp(32px,3vw,44px);
+  --key-gap:5px;
+  padding:14px;
+}
+.keyboard-laptop .laptop-main{gap:8px}
+.keyboard-laptop .laptop-function-row{gap:var(--key-gap)}
+.keyboard-laptop .key-row{gap:var(--key-gap);margin-bottom:var(--key-gap)}
+.keyboard-laptop .laptop-bottom-line{
+  grid-template-columns:minmax(0,1fr) 116px;
+  gap:8px;
+}
+.keyboard-laptop .laptop-arrow-wrap .arrow-grid{gap:var(--key-gap)}
+.keyboard-laptop .laptop-function-key{height:30px;min-height:30px}
+@media (max-width:1100px){
+  .keyboard{min-width:900px}
+  .keyboard-body-grid{grid-template-columns:minmax(0,1fr) 142px 176px}
+}
+@media (max-width:850px){
+  .workspace{width:min(100% - 20px,1160px)}
+  .keyboard-stage{margin-inline:-4px;padding-inline:4px}
+}
+@media (max-width:700px){
+  .keyboard{min-width:860px}
+  .keyboard-body-grid{grid-template-columns:minmax(0,1fr) 132px 164px}
+  .function-clusters{grid-template-columns:64px repeat(3,minmax(0,1fr));gap:8px}
+  .function-cluster{gap:4px}
+  .key{font-size:8px}
+  .keyboard-laptop{min-width:760px}
+}
+@media (prefers-reduced-motion:reduce){
+  .key{transition:none!important}
+}
