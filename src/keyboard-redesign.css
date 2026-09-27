@@ -1,0 +1,214 @@
+/* Typhelper keyboard geometry reset + visual rebuild.
+   The JSX supplies six concrete layouts: Windows/Mac x Full/Laptop, with Windows Legacy/Copilot variants.
+   This file owns geometry so later component styling cannot collapse rows or side clusters. */
+.keyboard-stage{
+  --kb-gap:6px;
+  --kb-key-h:clamp(42px,4.6vw,62px);
+  width:100%;
+  min-width:0;
+  overflow:auto;
+  padding:18px 8px 8px;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+}
+.keyboard-stage::-webkit-scrollbar{height:8px}
+.keyboard{
+  width:min(100%,1500px);
+  min-width:1120px;
+  margin:0 auto;
+  padding:14px;
+  display:flex;
+  flex-direction:column;
+  gap:var(--kb-gap);
+  border-radius:24px;
+  border:1px solid rgba(20,24,32,.16);
+  background:linear-gradient(160deg,rgba(255,255,255,.98),rgba(238,242,247,.98));
+  color:#1c2430;
+  box-shadow:0 24px 70px rgba(24,33,48,.18),inset 0 1px 0 rgba(255,255,255,.96);
+}
+.function-clusters{
+  display:grid!important;
+  grid-template-columns:74px repeat(3,minmax(0,1fr))!important;
+  gap:var(--kb-gap)!important;
+  align-items:stretch;
+}
+.function-cluster{
+  min-width:0;
+  display:flex!important;
+  gap:var(--kb-gap);
+}
+.function-cluster .key{flex:1 1 0!important;min-width:0}
+.function-key{
+  height:28px!important;
+  min-height:28px!important;
+  padding:3px 5px!important;
+  border-radius:8px!important;
+  font-size:10px!important;
+}
+.keyboard-body-grid{
+  display:grid!important;
+  grid-template-columns:minmax(0,15.8fr) minmax(150px,4.1fr) minmax(235px,4.3fr)!important;
+  gap:var(--kb-gap)!important;
+  min-width:0;
+  align-items:stretch;
+}
+.main-keyboard,.navigation-keyboard,.numpad-keyboard{min-width:0}
+.main-keyboard,.navigation-keyboard{
+  display:flex;
+  flex-direction:column;
+  gap:var(--kb-gap);
+}
+.key-row{
+  width:100%;
+  min-width:0;
+  display:grid!important;
+  gap:var(--kb-gap)!important;
+  margin:0!important;
+}
+.key{
+  position:relative;
+  min-width:0;
+  height:var(--kb-key-h)!important;
+  min-height:var(--kb-key-h)!important;
+  padding:4px 6px!important;
+  display:flex!important;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:3px;
+  border:1px solid rgba(91,104,122,.24);
+  border-radius:11px;
+  background:linear-gradient(180deg,#fff,#e9eef4);
+  color:#263141;
+  box-shadow:0 3px 0 rgba(114,125,140,.20),0 8px 18px rgba(31,42,57,.07),inset 0 1px 0 rgba(255,255,255,.9);
+  overflow:hidden;
+  user-select:none;
+  -webkit-user-select:none;
+  transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease,background .12s ease;
+}
+.key::after{
+  content:"";
+  position:absolute;
+  inset:1px;
+  border-radius:inherit;
+  pointer-events:none;
+  background:linear-gradient(145deg,rgba(255,255,255,.58),transparent 42%);
+}
+.key:hover{
+  transform:translateY(-1px);
+  border-color:rgba(67,82,103,.42);
+  box-shadow:0 4px 0 rgba(114,125,140,.16),0 12px 22px rgba(31,42,57,.10),inset 0 1px 0 rgba(255,255,255,.92);
+}
+.key.target,.key:active{
+  transform:translateY(1px);
+  box-shadow:0 1px 0 rgba(114,125,140,.13),0 5px 11px rgba(31,42,57,.11);
+}
+.key.target{
+  border-color:rgba(73,104,213,.55);
+  background:linear-gradient(180deg,#eff4ff,#dbe7ff);
+  outline:3px solid rgba(88,121,255,.24);
+  outline-offset:-1px;
+}
+.key-glyph{
+  display:block;
+  min-height:1em;
+  line-height:1;
+  font-size:clamp(9px,1vw,13px)!important;
+  color:rgba(62,75,93,.66);
+}
+.key-label{
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  line-height:1.05;
+  font-size:clamp(9px,1.02vw,12px)!important;
+  font-weight:800;
+}
+.function-key .key-label{font-size:clamp(8px,.86vw,10px)!important}
+.modifier-key{background:linear-gradient(180deg,#f8fafc,#e4e9ef)}
+.keyboard .key[data-key="copilot"]{
+  background:linear-gradient(180deg,#f1efff,#dedaff);
+  border-color:rgba(112,92,230,.36);
+}
+.keyboard-windows .key[data-key="win"] .key-label{font-size:clamp(8px,.84vw,11px)!important}
+.keyboard-mac .key[data-key="left-command"] .key-label,
+.keyboard-mac .key[data-key="right-command"] .key-label{font-size:clamp(8px,.82vw,10px)!important}
+.navigation-keyboard .nav-grid{
+  flex:1 1 auto;
+  min-height:0;
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-rows:repeat(3,minmax(0,1fr));
+  gap:var(--kb-gap);
+}
+.navigation-keyboard .nav-grid .key{height:100%!important;min-height:var(--kb-key-h)!important}
+.navigation-keyboard .arrow-grid,
+.laptop-arrow-wrap .arrow-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-rows:repeat(2,var(--kb-key-h));
+  gap:var(--kb-gap);
+}
+.navigation-keyboard .arrow-grid{margin-top:var(--kb-gap)}
+.navigation-keyboard .arrow-grid .arrow-key:nth-child(1),
+.laptop-arrow-wrap .arrow-grid .arrow-key:nth-child(1){grid-column:1;grid-row:2}
+.navigation-keyboard .arrow-grid .arrow-key:nth-child(2),
+.laptop-arrow-wrap .arrow-grid .arrow-key:nth-child(2){grid-column:2;grid-row:1}
+.navigation-keyboard .arrow-grid .arrow-key:nth-child(3),
+.laptop-arrow-wrap .arrow-grid .arrow-key:nth-child(3){grid-column:3;grid-row:2}
+.navigation-keyboard .arrow-grid .arrow-key:nth-child(4),
+.laptop-arrow-wrap .arrow-grid .arrow-key:nth-child(4){grid-column:2;grid-row:2}
+.numpad-keyboard{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  grid-template-rows:repeat(5,var(--kb-key-h))!important;
+  gap:var(--kb-gap)!important;
+  min-width:0;
+}
+.numpad-keyboard .key{height:100%!important;min-height:0!important}
+.numpad-keyboard .row-span{min-height:calc(var(--kb-key-h)*2 + var(--kb-gap))!important}
+.laptop-main{display:flex!important;flex-direction:column;gap:var(--kb-gap);min-width:0}
+.laptop-function-row{
+  display:grid!important;
+  grid-template-columns:repeat(12,minmax(0,1fr));
+  gap:var(--kb-gap);
+  min-width:0;
+}
+.laptop-function-row .key{min-width:0;flex:initial!important}
+.laptop-alpha-block{display:flex;flex-direction:column;gap:var(--kb-gap);min-width:0}
+.laptop-bottom-line{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 132px;
+  gap:var(--kb-gap);
+  min-width:0;
+}
+.laptop-modifier-row{min-width:0}
+.laptop-arrow-wrap{width:132px;min-width:132px}
+.laptop-arrow-wrap .arrow-grid{width:132px}
+.laptop-function-key{height:30px!important;min-height:30px!important}
+.keyboard-note{
+  max-width:1500px;
+  margin:10px auto 0;
+  color:#697487!important;
+  font-size:.72rem!important;
+}
+@media(max-width:1150px){
+  .keyboard{min-width:1040px}
+  .keyboard-body-grid{grid-template-columns:minmax(0,15fr) minmax(135px,4fr) minmax(210px,4.2fr)!important}
+}
+@media(max-width:900px){
+  .keyboard-stage{padding-inline:4px}
+  .keyboard{min-width:930px;width:max(100%,930px);border-radius:20px;padding:11px}
+  .function-clusters{grid-template-columns:60px repeat(3,minmax(0,1fr))!important}
+  .keyboard-body-grid{grid-template-columns:minmax(0,1fr) 126px 188px!important}
+}
+@media(max-width:720px){
+  .keyboard{min-width:860px}
+  .keyboard-stage{padding-top:10px}
+  .key{--kb-key-h:40px}
+}
+@media(prefers-reduced-motion:reduce){
+  .key{transition:none!important}
+  .key:hover,.key:active,.key.target{transform:none}
+}
