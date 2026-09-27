@@ -710,3 +710,234 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 @media (prefers-reduced-motion:reduce){
   .key{transition:none!important}
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Keyboard renderer v2 — replaces the fragile legacy geometry with a
+   single responsive grid system shared by Windows/Mac, full/laptop,
+   and Windows Legacy/Copilot variants.
+   ═══════════════════════════════════════════════════════════════════ */
+.keyboard-stage{
+  --kb-gap:clamp(4px,.55vw,8px);
+  --kb-key-h:clamp(38px,4.2vw,56px);
+  width:100%;
+  min-width:0;
+  overflow:auto;
+  padding:clamp(8px,1.5vw,18px) 0 4px;
+  scrollbar-width:thin;
+}
+.keyboard{
+  width:min(100%,1400px);
+  min-width:0;
+  margin:0 auto;
+  display:flex;
+  flex-direction:column;
+  gap:var(--kb-gap);
+  padding:clamp(10px,1.2vw,16px);
+  border:1px solid rgba(20,24,32,.16);
+  border-radius:24px;
+  background:linear-gradient(160deg,rgba(255,255,255,.94),rgba(244,247,251,.96));
+  box-shadow:0 24px 70px rgba(26,35,49,.18),inset 0 1px 0 rgba(255,255,255,.9);
+  color:#1b2430;
+}
+.function-clusters{
+  display:grid!important;
+  grid-template-columns:minmax(58px,1.25fr) repeat(3,minmax(0,4fr))!important;
+  gap:var(--kb-gap)!important;
+  align-items:stretch;
+  width:100%;
+}
+.function-cluster{
+  display:flex!important;
+  gap:var(--kb-gap);
+  min-width:0;
+}
+.function-cluster .key{
+  flex:1 1 0!important;
+  min-width:0;
+}
+.keyboard-body-grid{
+  display:grid!important;
+  grid-template-columns:minmax(0,15.5fr) minmax(135px,4fr) minmax(215px,4fr)!important;
+  gap:var(--kb-gap)!important;
+  min-width:0;
+  align-items:stretch;
+}
+.main-keyboard,.navigation-keyboard,.numpad-keyboard{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:var(--kb-gap);
+}
+.key-row{
+  width:100%;
+  min-width:0;
+  display:grid!important;
+  gap:var(--kb-gap)!important;
+}
+.key{
+  position:relative;
+  min-width:0;
+  height:var(--kb-key-h);
+  padding:4px 5px;
+  display:flex!important;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+  overflow:hidden;
+  border:1px solid rgba(112,122,139,.22);
+  border-radius:10px;
+  background:linear-gradient(180deg,#ffffff 0%,#edf1f5 100%);
+  color:#2a3442;
+  box-shadow:0 3px 0 rgba(125,136,151,.18),0 7px 14px rgba(31,42,57,.06);
+  transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease,background .12s ease;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.key::after{
+  content:"";
+  position:absolute;
+  inset:1px;
+  border-radius:inherit;
+  pointer-events:none;
+  background:linear-gradient(145deg,rgba(255,255,255,.55),transparent 40%);
+}
+.key:hover{
+  transform:translateY(-1px);
+  border-color:rgba(93,105,126,.40);
+  box-shadow:0 4px 0 rgba(125,136,151,.16),0 10px 20px rgba(31,42,57,.09);
+}
+.key:active,.key.target{
+  transform:translateY(1px);
+  border-color:rgba(83,97,122,.52);
+  box-shadow:0 1px 0 rgba(125,136,151,.14),0 5px 11px rgba(31,42,57,.10);
+}
+.key.target{
+  outline:3px solid rgba(88,121,255,.30);
+  background:linear-gradient(180deg,#eef4ff 0%,#dce7ff 100%);
+}
+.key-glyph{
+  display:block;
+  min-height:1em;
+  font-size:clamp(.56rem,1vw,.74rem);
+  line-height:1;
+  color:rgba(66,77,92,.72);
+  white-space:nowrap;
+}
+.key-label{
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:clamp(.56rem,1.02vw,.72rem);
+  line-height:1.05;
+  font-weight:760;
+}
+.function-key .key-label{font-size:clamp(.55rem,.9vw,.68rem)}
+.modifier-key{background:linear-gradient(180deg,#f8fafc,#e8edf3)}
+.navigation-keyboard .nav-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-rows:repeat(3,minmax(0,1fr));
+  gap:var(--kb-gap);
+  flex:1;
+  min-height:0;
+}
+.navigation-keyboard .nav-grid .key{height:auto;min-height:calc(var(--kb-key-h) - 4px)}
+.navigation-keyboard .arrow-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-rows:repeat(2,var(--kb-key-h));
+  gap:var(--kb-gap);
+  margin-top:var(--kb-gap);
+}
+.navigation-keyboard .arrow-grid .arrow-key:nth-child(1){grid-column:1;grid-row:2}
+.navigation-keyboard .arrow-grid .arrow-key:nth-child(2){grid-column:2;grid-row:1}
+.navigation-keyboard .arrow-grid .arrow-key:nth-child(3){grid-column:3;grid-row:2}
+.navigation-keyboard .arrow-grid .arrow-key:nth-child(4){grid-column:2;grid-row:2}
+.numpad-keyboard{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-template-rows:repeat(5,var(--kb-key-h));
+  gap:var(--kb-gap);
+  min-height:0;
+}
+.numpad-keyboard .key{height:auto;min-height:0}
+.numpad-keyboard .row-span{min-height:calc(var(--kb-key-h) * 2 + var(--kb-gap))}
+.laptop-main{
+  display:flex;
+  flex-direction:column;
+  gap:var(--kb-gap);
+  min-width:0;
+}
+.laptop-function-row{
+  display:flex!important;
+  gap:var(--kb-gap);
+  min-width:0;
+}
+.laptop-function-row .key{
+  flex:1 1 0!important;
+}
+.laptop-alpha-block{
+  display:flex;
+  flex-direction:column;
+  gap:var(--kb-gap);
+  min-width:0;
+}
+.laptop-bottom-line{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:var(--kb-gap);
+  min-width:0;
+}
+.laptop-modifier-row{
+  min-width:0;
+  display:grid!important;
+  gap:var(--kb-gap)!important;
+}
+.laptop-arrow-wrap{
+  min-width:132px;
+  display:flex;
+  align-items:stretch;
+}
+.laptop-arrow-wrap .arrow-grid{
+  width:132px;
+  display:grid!important;
+  grid-template-columns:repeat(3,1fr);
+  grid-template-rows:repeat(2,var(--kb-key-h));
+  gap:var(--kb-gap);
+}
+.laptop-arrow-wrap .arrow-grid .arrow-key:nth-child(1){grid-column:1;grid-row:2}
+.laptop-arrow-wrap .arrow-grid .arrow-key:nth-child(2){grid-column:2;grid-row:1}
+.laptop-arrow-wrap .arrow-grid .arrow-key:nth-child(3){grid-column:3;grid-row:2}
+.laptop-arrow-wrap .arrow-grid .arrow-key:nth-child(4){grid-column:2;grid-row:2}
+.keyboard-layout-copilot .key[data-key="copilot"]{
+  background:linear-gradient(180deg,#f0efff 0%,#e0ddff 100%);
+  border-color:rgba(112,92,230,.30);
+}
+.keyboard-windows .key[data-key="win"] .key-label{font-size:clamp(.5rem,.8vw,.66rem)}
+.keyboard-mac .key[data-key="left-command"] .key-label,
+.keyboard-mac .key[data-key="right-command"] .key-label{font-size:clamp(.48rem,.78vw,.64rem)}
+.keyboard-note{
+  max-width:1400px;
+  margin:8px auto 0;
+  color:#687487!important;
+  font-size:.72rem!important;
+}
+@media (max-width:1150px){
+  .keyboard-body-grid{grid-template-columns:minmax(0,1fr) minmax(118px,.4fr) minmax(190px,.52fr)!important}
+}
+@media (max-width:900px){
+  .keyboard-stage{padding-inline:2px}
+  .keyboard{min-width:720px;width:max(100%,720px);border-radius:18px}
+  .keyboard-body-grid{grid-template-columns:minmax(0,1fr) minmax(118px,.34fr) minmax(180px,.5fr)!important}
+}
+@media (max-width:760px){
+  .keyboard{min-width:660px;width:660px}
+  .keyboard-body-grid{grid-template-columns:minmax(0,1fr) 116px 180px!important}
+}
+@media (prefers-reduced-motion:reduce){
+  .key{transition:none!important}
+  .key:hover,.key:active,.key.target{transform:none}
+}
