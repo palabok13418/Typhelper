@@ -941,3 +941,168 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
   .key{transition:none!important}
   .key:hover,.key:active,.key.target{transform:none}
 }
+
+
+/* Typhelper final keyboard geometry reset.
+   This intentionally comes last so legacy keyboard rules cannot conflict
+   with the single renderer used by every Windows/Mac + full/laptop layout. */
+.keyboard-stage{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  display:flex!important;
+  justify-content:flex-start!important;
+  align-items:flex-start!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  transform:none!important;
+  padding:12px 0 18px!important;
+  scroll-snap-type:none!important;
+  -webkit-overflow-scrolling:touch;
+}
+.keyboard{
+  --key-size:clamp(36px,3.35vw,52px);
+  --key-gap:6px;
+  flex:0 0 auto!important;
+  width:max(1060px,calc(100% - 2px))!important;
+  min-width:1060px!important;
+  margin:0!important;
+  padding:16px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:10px!important;
+  overflow:visible!important;
+}
+.function-clusters{
+  display:grid!important;
+  grid-template-columns:68px repeat(3,minmax(0,1fr))!important;
+  gap:var(--key-gap)!important;
+  width:100%!important;
+}
+.function-cluster{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:var(--key-gap)!important;
+}
+.function-cluster-0{grid-template-columns:minmax(0,1fr)!important}
+.key-row{
+  display:grid!important;
+  width:100%!important;
+  min-width:0!important;
+  gap:var(--key-gap)!important;
+  margin:0 0 var(--key-gap)!important;
+}
+.key{
+  width:auto!important;
+  min-width:0!important;
+  height:var(--key-size)!important;
+  min-height:var(--key-size)!important;
+  margin:0!important;
+  padding:4px 5px!important;
+  transform:none;
+}
+.key.target{transform:translateY(1px)!important}
+.keyboard-body-grid{
+  display:grid!important;
+  width:100%!important;
+  min-width:0!important;
+  grid-template-columns:minmax(0,1fr) 164px 214px!important;
+  gap:var(--key-gap)!important;
+  align-items:start!important;
+}
+.main-keyboard,.navigation-keyboard,.numpad-keyboard{
+  min-width:0!important;
+}
+.main-keyboard{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:var(--key-gap)!important;
+}
+.navigation-keyboard{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:var(--key-gap)!important;
+}
+.nav-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-template-rows:repeat(3,var(--key-size))!important;
+  gap:var(--key-gap)!important;
+}
+.nav-grid .key{height:var(--key-size)!important}
+.arrow-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-template-rows:repeat(2,var(--key-size))!important;
+  gap:var(--key-gap)!important;
+  margin:0!important;
+}
+.arrow-grid .arrow-key:nth-child(1){grid-column:1!important;grid-row:2!important}
+.arrow-grid .arrow-key:nth-child(2){grid-column:2!important;grid-row:1!important}
+.arrow-grid .arrow-key:nth-child(3){grid-column:3!important;grid-row:2!important}
+.arrow-grid .arrow-key:nth-child(4){grid-column:2!important;grid-row:2!important}
+.numpad-keyboard{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  grid-template-rows:repeat(5,var(--key-size))!important;
+  gap:var(--key-gap)!important;
+}
+.numpad-keyboard .key{
+  height:var(--key-size)!important;
+  min-height:var(--key-size)!important;
+}
+.numpad-keyboard .row-span{
+  min-height:calc(var(--key-size)*2 + var(--key-gap))!important;
+  height:auto!important;
+}
+.keyboard-laptop{
+  width:max(860px,calc(100% - 2px))!important;
+  min-width:860px!important;
+  padding:14px!important;
+  --key-size:clamp(32px,3.1vw,45px);
+  --key-gap:5px;
+}
+.keyboard-laptop .laptop-main,
+.keyboard-laptop .laptop-alpha-block{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:var(--key-gap)!important;
+  min-width:0!important;
+}
+.keyboard-laptop .laptop-function-row{
+  display:flex!important;
+  gap:var(--key-gap)!important;
+  width:100%!important;
+}
+.keyboard-laptop .laptop-function-row .key{
+  flex:1 1 0!important;
+}
+.keyboard-laptop .laptop-bottom-line{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 132px!important;
+  gap:var(--key-gap)!important;
+}
+.keyboard-laptop .laptop-arrow-wrap{
+  min-width:132px!important;
+}
+.keyboard-laptop .laptop-arrow-wrap .arrow-grid{
+  width:132px!important;
+  gap:var(--key-gap)!important;
+}
+@media (max-width:1100px){
+  .keyboard{min-width:1000px!important}
+  .keyboard-body-grid{grid-template-columns:minmax(0,1fr) 150px 198px!important}
+}
+@media (max-width:820px){
+  .keyboard{min-width:940px!important}
+  .keyboard-body-grid{grid-template-columns:minmax(0,1fr) 140px 186px!important}
+}
+@media (max-width:680px){
+  .keyboard-stage{padding-inline:4px!important}
+  .keyboard{min-width:900px!important}
+  .keyboard-laptop{min-width:820px!important}
+  .keyboard-body-grid{grid-template-columns:minmax(0,1fr) 132px 176px!important}
+}
+@media (prefers-reduced-motion:reduce){
+  .keyboard,.key{transition:none!important}
+}
