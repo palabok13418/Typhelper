@@ -5,6 +5,16 @@ type GazeMeasurement={down:number;headPitch:number;headYaw:number;eyeOpenness:nu
 type GazeBaseline={down:number;headPitch:number;openness:number};
 type GazeCallback=(state:GazeState,detected:boolean)=>void;
 
+let visionFilesetPromise:Promise<any>|null=null;
+const INFERENCE_INTERVAL_MS=66;
+
+async function getVisionFileset(FilesetResolver:any){
+  if(!visionFilesetPromise){
+    visionFilesetPromise=FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm");
+  }
+  return visionFilesetPromise;
+}
+
 export class GazeMonitor{
   stream:MediaStream|null=null;
   detector:any=null;
@@ -16,9 +26,11 @@ export class GazeMonitor{
   private stable:GazeState="unknown";
   private unknownFrames=0;
   private lastVideoTimestamp=0;
+  private lastInferenceAt=0;
 
   async start(video:HTMLVideoElement,onState:GazeCallback,existingStream?:MediaStream){
     this.stopped=false;
+    this.lastInferenceAt=0;
     this.history=[]; this.stable="unknown"; this.unknownFrames=0;
     this.baseline=null; this.baselineSamples=[]; this.lastVideoTimestamp=0;
     this.stream=existingStream??await navigator.mediaDevices.getUserMedia({
@@ -29,7 +41,7 @@ export class GazeMonitor{
     await video.play();
 
     const {FaceLandmarker,FilesetResolver}=await import("@mediapipe/tasks-vision");
-    const fs=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm");
+    const fs=await getVisionFileset(FilesetResolver);
     try{
       this.detector=await this.createDetector(FaceLandmarker,fs,"GPU");
     }catch{
@@ -43,7 +55,7 @@ export class GazeMonitor{
     this.detector?.close?.(); this.detector=null;
     this.stream?.getTracks().forEach(track=>track.stop()); this.stream=null;
     this.history=[]; this.baseline=null; this.baselineSamples=[];
-    this.stable="unknown"; this.unknownFrames=0; this.lastVideoTimestamp=0;
+    this.stable="unknown"; this.unknownFrames=0; this.lastVideoTimestamp=0; this.lastInferenceAt=0;
     if(video){try{video.pause()}catch{} try{video.srcObject=null}catch{}}
   }
 
@@ -63,10 +75,16 @@ export class GazeMonitor{
   private loop(video:HTMLVideoElement,onState:GazeCallback){
     if(this.stopped)return;
     try{
+      const now=performance.now();
+      if(now-this.lastInferenceAt<INFERENCE_INTERVAL_MS){
+        this.raf=requestAnimationFrame(()=>this.loop(video,onState));
+        return;
+      }
+      this.lastInferenceAt=now;
       if(video.readyState<2||video.videoWidth===0||video.videoHeight===0){
         this.pushState("unknown",false,onState);
       }else{
-        const timestamp=Math.max(performance.now(),this.lastVideoTimestamp+1);
+        const timestamp=Math.max(now,this.lastVideoTimestamp+1);
         this.lastVideoTimestamp=timestamp;
         const result=this.detector.detectForVideo(video,timestamp);
         const landmarks=result.faceLandmarks?.[0] as Landmark[]|undefined;
