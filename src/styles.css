@@ -1106,3 +1106,235 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 @media (prefers-reduced-motion:reduce){
   .keyboard,.key{transition:none!important}
 }
+
+
+/* Keyboard renderer v5 — one clean visual system for every supported layout. */
+.keyboard-stage{
+  width:100%!important;
+  min-width:0!important;
+  display:flex!important;
+  justify-content:center!important;
+  align-items:flex-start!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  padding:12px 4px 16px!important;
+  scroll-behavior:smooth;
+  scrollbar-width:thin;
+}
+.keyboard{
+  --kb-h:clamp(34px,3.2vw,52px);
+  --kb-gap:clamp(4px,.48vw,7px);
+  --kb-pad:clamp(10px,1vw,16px);
+  --kb-radius:18px;
+  flex:0 0 auto!important;
+  width:min(1180px,100%)!important;
+  min-width:0!important;
+  padding:var(--kb-pad)!important;
+  gap:var(--kb-gap)!important;
+  border:1px solid #cfd4dc!important;
+  border-radius:var(--kb-radius)!important;
+  background:linear-gradient(160deg,#f8fafc 0%,#e9edf2 100%)!important;
+  box-shadow:0 22px 58px rgba(31,41,55,.12),inset 0 1px 0 rgba(255,255,255,.92)!important;
+  color:#202938!important;
+  overflow:visible!important;
+}
+.function-clusters{
+  display:grid!important;
+  grid-template-columns:minmax(52px,.9fr) repeat(3,minmax(0,3.6fr))!important;
+  gap:var(--kb-gap)!important;
+  align-items:stretch!important;
+  width:100%!important;
+}
+.function-cluster{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:var(--kb-gap)!important;
+}
+.function-cluster-0{grid-template-columns:1fr!important}
+.key-row{
+  display:grid!important;
+  width:100%!important;
+  min-width:0!important;
+  gap:var(--kb-gap)!important;
+  margin:0 0 var(--kb-gap)!important;
+  align-items:stretch!important;
+}
+.key{
+  position:relative!important;
+  width:auto!important;
+  min-width:0!important;
+  height:var(--kb-h)!important;
+  min-height:var(--kb-h)!important;
+  padding:4px 6px!important;
+  border:1px solid rgba(125,136,151,.25)!important;
+  border-bottom-color:rgba(104,115,129,.34)!important;
+  border-radius:10px!important;
+  background:linear-gradient(180deg,#ffffff 0%,#edf1f5 100%)!important;
+  color:#2a3341!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:3px!important;
+  overflow:hidden!important;
+  user-select:none!important;
+  box-shadow:0 3px 0 rgba(99,110,124,.14),0 8px 18px rgba(31,42,57,.06),inset 0 1px 0 rgba(255,255,255,.95)!important;
+  transform:none!important;
+  transition:transform .11s ease,box-shadow .11s ease,border-color .11s ease,background .11s ease!important;
+}
+.key::after{
+  content:""!important;
+  position:absolute!important;
+  inset:1px!important;
+  border-radius:inherit!important;
+  pointer-events:none!important;
+  background:linear-gradient(135deg,rgba(255,255,255,.62),transparent 42%)!important;
+}
+.key:hover{
+  background:linear-gradient(180deg,#fff 0%,#f1f4f7 100%)!important;
+  border-color:rgba(91,106,126,.34)!important;
+  transform:translateY(-1px)!important;
+  box-shadow:0 4px 0 rgba(99,110,124,.12),0 12px 22px rgba(31,42,57,.08),inset 0 1px 0 rgba(255,255,255,.96)!important;
+}
+.key:active,
+.key.target{
+  transform:translateY(1px)!important;
+}
+.key.target{
+  background:linear-gradient(180deg,#eef4ff 0%,#dae7ff 100%)!important;
+  border-color:rgba(71,109,189,.48)!important;
+  box-shadow:0 1px 0 rgba(99,110,124,.10),0 6px 14px rgba(62,97,166,.13),0 0 0 2px rgba(83,120,207,.14)!important;
+}
+.key-glyph{
+  min-height:1em!important;
+  max-width:100%!important;
+  font-size:clamp(.55rem,.88vw,.72rem)!important;
+  line-height:1!important;
+  color:rgba(66,77,92,.68)!important;
+}
+.key-label{
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  font-size:clamp(.55rem,.88vw,.70rem)!important;
+  line-height:1.05!important;
+  font-weight:760!important;
+}
+.function-key{
+  height:30px!important;
+  min-height:30px!important;
+  border-radius:8px!important;
+  padding:3px 5px!important;
+}
+.function-key .key-label{font-size:clamp(.52rem,.72vw,.64rem)!important}
+.keyboard-body-grid{
+  display:grid!important;
+  width:100%!important;
+  min-width:0!important;
+  grid-template-columns:minmax(0,15.2fr) minmax(138px,3.9fr) minmax(180px,4.3fr)!important;
+  gap:var(--kb-gap)!important;
+  align-items:start!important;
+}
+.main-keyboard,
+.navigation-keyboard,
+.numpad-keyboard{
+  min-width:0!important;
+}
+.main-keyboard,
+.navigation-keyboard{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:var(--kb-gap)!important;
+}
+.navigation-keyboard .nav-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-template-rows:repeat(3,var(--kb-h))!important;
+  gap:var(--kb-gap)!important;
+}
+.navigation-keyboard .arrow-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-template-rows:repeat(2,var(--kb-h))!important;
+  gap:var(--kb-gap)!important;
+  margin:0!important;
+}
+.navigation-keyboard .arrow-grid .arrow-key:nth-child(1){grid-column:1!important;grid-row:2!important}
+.navigation-keyboard .arrow-grid .arrow-key:nth-child(2){grid-column:2!important;grid-row:1!important}
+.navigation-keyboard .arrow-grid .arrow-key:nth-child(3){grid-column:3!important;grid-row:2!important}
+.navigation-keyboard .arrow-grid .arrow-key:nth-child(4){grid-column:2!important;grid-row:2!important}
+.arrow-key .key-glyph{font-size:clamp(.78rem,1.2vw,1rem)!important}
+.numpad-keyboard{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  grid-template-rows:repeat(5,var(--kb-h))!important;
+  gap:var(--kb-gap)!important;
+}
+.numpad-keyboard .key{height:auto!important;min-height:0!important}
+.numpad-keyboard .row-span{min-height:calc(var(--kb-h)*2 + var(--kb-gap))!important;height:auto!important}
+
+.keyboard-laptop{
+  --kb-h:clamp(31px,2.95vw,45px);
+  width:min(1040px,100%)!important;
+  min-width:0!important;
+}
+.keyboard-laptop .laptop-main,
+.keyboard-laptop .laptop-alpha-block{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:var(--kb-gap)!important;
+  min-width:0!important;
+}
+.keyboard-laptop .laptop-function-row{
+  display:grid!important;
+  grid-template-columns:repeat(15,minmax(0,1fr))!important;
+  gap:var(--kb-gap)!important;
+  width:100%!important;
+}
+.keyboard-laptop .laptop-function-row .key{
+  width:auto!important;
+  flex:initial!important;
+}
+.keyboard-laptop .laptop-bottom-line{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 132px!important;
+  gap:var(--kb-gap)!important;
+  align-items:end!important;
+}
+.keyboard-laptop .laptop-modifier-row{min-width:0!important}
+.keyboard-laptop .laptop-modifier-row .key-row{margin-bottom:0!important}
+.keyboard-laptop .laptop-arrow-wrap{
+  min-width:132px!important;
+}
+.keyboard-laptop .laptop-arrow-wrap .arrow-grid{
+  width:132px!important;
+  display:grid!important;
+  grid-template-columns:repeat(3,1fr)!important;
+  grid-template-rows:repeat(2,var(--kb-h))!important;
+  gap:var(--kb-gap)!important;
+  margin:0!important;
+}
+.keyboard-note{
+  width:100%!important;
+  max-width:1180px!important;
+  margin:7px auto 0!important;
+  color:#667384!important;
+  font-size:.70rem!important;
+}
+@media(max-width:980px){
+  .keyboard{min-width:900px!important}
+  .keyboard-body-grid{grid-template-columns:minmax(0,1fr) 138px 182px!important}
+}
+@media(max-width:760px){
+  .keyboard-stage{justify-content:flex-start!important}
+  .keyboard{min-width:860px!important}
+  .keyboard-body-grid{grid-template-columns:minmax(0,1fr) 128px 172px!important}
+  .keyboard-laptop{min-width:820px!important}
+  .keyboard-laptop .laptop-bottom-line{grid-template-columns:minmax(0,1fr) 124px!important}
+  .keyboard-laptop .laptop-arrow-wrap,.keyboard-laptop .laptop-arrow-wrap .arrow-grid{width:124px!important;min-width:124px!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .key{transition:none!important}
+  .key:hover,.key:active,.key.target{transform:none!important}
+}
