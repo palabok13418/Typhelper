@@ -7,7 +7,11 @@
       "headers": [
         {
           "key": "Permissions-Policy",
-          "value": "camera=(self)"
+          "value": "camera=(self \"https://mus-api.vercel.app\")"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'self' https://mus-api.vercel.app"
         }
       ]
     }
