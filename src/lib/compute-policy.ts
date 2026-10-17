@@ -22,8 +22,7 @@ function isVerifiedM2PlusCapability(value: unknown): boolean {
     && generation >= 2
     && caps.nativeComputeReady === true
     && caps.bundledLibrariesReady === true
-    && caps.localAIReady === true
-    && caps.audioDecodeReady === true;
+    && caps.localAIReady === true;
 }
 
 function parentOrigin(): string {
