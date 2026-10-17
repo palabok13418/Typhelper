@@ -1,4 +1,5 @@
 import { probeDeviceRuntime } from "./device-runtime";
+import { getComputePolicy } from "./compute-policy";
 import type { PerformanceMode } from "./performance";
 
 export interface QuizAiResult{score:number;tips:string[];summary:string;backend:"cloud"|"local"|"fallback"}
@@ -31,17 +32,25 @@ async function localJson(system:string,prompt:string){
     return JSON.parse(cleaned);
   }catch{return null}
 }
-function shouldUseLocal(mode:PerformanceMode,allowed:boolean){analysisCount+=1;return allowed&&(mode==="max"||(mode==="balanced"&&analysisCount%10>=7));}
+function shouldUseLocal(mode:PerformanceMode,allowed:boolean){
+  analysisCount+=1;
+  if(getComputePolicy()==="mac-local")return allowed;
+  // For non-M2+ clients, local inference handles roughly 30% of eligible
+  // requests while the server handles the remaining 70%.
+  return allowed&&mode!=="low"&&analysisCount%10<3;
+}
 function stringArray(values:unknown,limit:number){return Array.isArray(values)?values.map(v=>typeof v==="string"?v.trim():String(v??"").trim()).filter((v):v is string=>Boolean(v)).slice(0,limit):[];}
 async function cloud(kind:"quiz"|"practice",payload:unknown){
   try{const response=await fetch("/api/ml/analyze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({kind,...(payload as Record<string,unknown>)})});if(!response.ok)return null;return await response.json();}catch{return null}
 }
 export async function analyzeQuiz(payload:{stats:Record<string,unknown>;focusPauses:number;target:string;answer:string},mode:PerformanceMode):Promise<QuizAiResult>{
-  const profile=await probeDeviceRuntime(mode);
+  const policy=getComputePolicy();
+  const profile=await probeDeviceRuntime(policy==="mac-local"?"max":mode);
   if(shouldUseLocal(mode,profile.localModelAllowed)){
     const result=await localJson("You are Typhelper's local touch-typing coach. Analyze aggregate check-in metrics only. Return JSON {score:number,tips:string[],summary:string}. Score 0-100 and give 2-4 specific improvements.","Stats: "+JSON.stringify(payload.stats)+" Focus pauses: "+payload.focusPauses+" Target length: "+payload.target.length+" Answer length: "+payload.answer.length);
     if(result&&typeof result.score==="number")return{score:Math.max(0,Math.min(100,Math.round(result.score))),tips:Array.isArray(result.tips)?result.tips.map((v:any)=>String(v||"").trim()).filter(Boolean).slice(0,4):[],summary:typeof result.summary==="string"?result.summary.trim():"",backend:"local"};
   }
+  if(policy==="mac-local")return{score:0,tips:[],summary:"Local AI is unavailable on this Mac right now.",backend:"fallback"};
   const result=await cloud("quiz",payload);
   if(result&&typeof result.score==="number")return{score:Math.max(0,Math.min(100,Math.round(result.score))),tips:Array.isArray(result.tips)?result.tips.map((v:any)=>String(v||"").trim()).filter(Boolean).slice(0,4):[],summary:typeof result.summary==="string"?result.summary.trim():"",backend:"cloud"};
   return{score:0,tips:[],summary:"",backend:"fallback"};
@@ -53,6 +62,7 @@ export async function analyzePractice(skills:Record<string,unknown>,recent:Array
     const words=stringArray(result?.recommendedWords,8).map(v=>v.toLowerCase()).filter(v=>WORD_BANK.includes(v));
     if(words.length)return{recommendedWords:[...new Set(words)],focusKeys:stringArray(result?.focusKeys,8),tips:stringArray(result?.tips,4),backend:"local"};
   }
+  if(policy==="mac-local")return null;
   const result=await cloud("practice",{skills,recent});
   if(!result)return null;
   const words=stringArray(result.recommendedWords,8).map(v=>v.toLowerCase()).filter(v=>WORD_BANK.includes(v));
