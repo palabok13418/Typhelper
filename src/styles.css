@@ -1373,9 +1373,3 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
   .keyboard{padding:8px!important;gap:7px!important}.key-row{gap:3px!important;margin-bottom:3px!important}.key{--key-size:31px!important;height:31px!important;min-height:31px!important;padding:3px!important}.key-glyph{display:none!important}.key-label{font-size:7px!important}.function-clusters{display:none!important}
   .keyboard-laptop{--key-size:28px!important;padding:8px!important}.keyboard-laptop .laptop-function-row{gap:3px!important}.keyboard-laptop .laptop-function-key{height:25px!important;min-height:25px!important}.keyboard-laptop .laptop-function-key .key-glyph{display:none!important}
 }
-
-
-/* Mus-API embeds the actual Typhelper site in a first-class app surface. */
-html.mus-api-embedded, html.mus-api-embedded body, html.mus-api-embedded #root { min-height: 100%; }
-html.mus-api-embedded .app { min-height: 100dvh; }
-html.mus-api-embedded .workspace { min-height: calc(100dvh - 62px); }
