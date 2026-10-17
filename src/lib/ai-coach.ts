@@ -56,7 +56,8 @@ export async function analyzeQuiz(payload:{stats:Record<string,unknown>;focusPau
   return{score:0,tips:[],summary:"",backend:"fallback"};
 }
 export async function analyzePractice(skills:Record<string,unknown>,recent:Array<{word:string;correct:boolean;duration:number}>,mode:PerformanceMode):Promise<PracticeAiResult|null>{
-  const profile=await probeDeviceRuntime(mode);
+  const policy=getComputePolicy();
+  const profile=await probeDeviceRuntime(policy==="mac-local"?"max":mode);
   if(shouldUseLocal(mode,profile.localModelAllowed)){
     const result=await localJson("You are Typhelper's local adaptive typing coach. Analyze aggregate typing outcomes only. Choose recommended words only from the supplied word bank. Return JSON {recommendedWords:string[],focusKeys:string[],tips:string[]}.","Word bank: "+WORD_BANK.join(", ")+" Skill map: "+JSON.stringify(skills).slice(0,5000)+" Recent outcomes: "+JSON.stringify(recent).slice(-5000));
     const words=stringArray(result?.recommendedWords,8).map(v=>v.toLowerCase()).filter(v=>WORD_BANK.includes(v));
